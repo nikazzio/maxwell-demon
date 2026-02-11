@@ -1,0 +1,33 @@
+{
+  "ignorePatterns": [
+    ".git/**",
+    ".github/**",
+    ".venv/**",
+    ".ruff_cache/**",
+    "__pycache__/**",
+    "*.pyc",
+    "*.pyo",
+    "*.pyd",
+    "*.log",
+    "*.csv",
+    "coverage.xml",
+    ".coverage",
+    "data/**",
+    "results/**",
+    "plots/**",
+    "dist/**",
+    "build/**",
+    "*.egg-info/**"
+  ],
+  "includePatterns": [
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "pyproject.toml",
+    "requirements.txt",
+    "DOC/**",
+    "scripts/**",
+    "src/**",
+    "tests/**"
+  ]
+}
