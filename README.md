@@ -152,6 +152,22 @@ python scripts/scripts_fetch_human.py --dataset dataset_it_01 --urls data/urls_e
 - `unique_ratio` is the ratio of unique tokens in each window.
 - Compression ratio uses `zlib` by default and can be switched to `gzip`, `bz2`, or `lzma`.
 
+
+## Coverage (Local)
+
+Run local coverage with the helper script:
+
+```bash
+./scripts/coverage.sh
+```
+
+
+## Codecov Graphs
+
+![Coverage Sunburst](https://codecov.io/github/nikazzio/maxwell-demon/graphs/sunburst.svg?token=EU01TE6TP8)
+
+![Coverage Icicle](https://codecov.io/github/nikazzio/maxwell-demon/graphs/icicle.svg?token=EU01TE6TP8)
+
 ## License
 
 MIT. See `LICENSE`.

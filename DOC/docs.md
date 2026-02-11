@@ -334,3 +334,9 @@ Example:
 ```bash
 python scripts/scripts_fetch_human.py --dataset dataset_it_01 --urls data/urls_example.json --min-words 800 --retries 5 --retry-delay 2 --fail-log data/dataset_it_01/fetch_failures.log
 ```
+
+## Local Coverage
+
+```bash
+./scripts/coverage.sh
+```

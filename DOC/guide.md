@@ -224,3 +224,9 @@ maxwell-demon-phase --input results/dataset_it_01/ --x mean_entropy --y compress
 ```
 
 This leaves you with clean CSVs and a phase diagram ready for inspection.
+
+## Local Coverage
+
+```bash
+./scripts/coverage.sh
+```
