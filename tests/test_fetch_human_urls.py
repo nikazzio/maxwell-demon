@@ -89,3 +89,11 @@ def test_resolve_only_id_from_file_name() -> None:
 def test_resolve_only_id_rejects_two_selectors() -> None:
     with pytest.raises(ValueError, match="Use only one selector"):
         MODULE._resolve_only_id("001", "001_human.txt")
+
+
+def test_filter_urls_for_target_id_uses_txt_position_when_ids_missing() -> None:
+    urls = [{"url": "https://example.com/1"}, {"url": "https://example.com/2"}]
+
+    selected = MODULE._filter_urls_for_target_id(urls, "002")
+
+    assert selected == [{"url": "https://example.com/2", "id": "002"}]

@@ -151,6 +151,31 @@ def _resolve_article_id(item: dict[str, str], human_dir: Path) -> str:
     return _next_available_id(human_dir)
 
 
+def _filter_urls_for_target_id(urls: list[dict[str, str]], target_id: str) -> list[dict[str, str]]:
+    matching = []
+    for item in urls:
+        raw_item_id = item.get("id")
+        if not raw_item_id:
+            continue
+        try:
+            normalized = _normalize_item_id(raw_item_id)
+        except ValueError:
+            continue
+        if normalized == target_id:
+            matching.append(item)
+    if matching:
+        return matching
+
+    # TXT lists usually do not have explicit IDs: map dataset ID -> 1-based URL index.
+    index = int(target_id) - 1
+    if 0 <= index < len(urls):
+        return [{**urls[index], "id": target_id}]
+    raise SystemExit(
+        f"No URL entries with id={target_id}. "
+        "Provide IDs in JSON or ensure the TXT list has enough URL rows."
+    )
+
+
 def _upsert_metadata_row(path: Path, row: dict[str, str]) -> None:
     header = ["id", "title", "human_source", "ai_model", "notes"]
     target_id = row.get("id", "").strip()
@@ -219,26 +244,7 @@ def main() -> None:
     urls = _load_urls(Path(args.urls))
     target_id = _resolve_only_id(args.only_id, args.only_file)
     if target_id is not None:
-        matching = []
-        for item in urls:
-            raw_item_id = item.get("id")
-            if not raw_item_id:
-                continue
-            try:
-                normalized = _normalize_item_id(raw_item_id)
-            except ValueError:
-                continue
-            if normalized == target_id:
-                matching.append(item)
-        if matching:
-            urls = matching
-        elif len(urls) == 1:
-            urls = [{**urls[0], "id": target_id}]
-        else:
-            raise SystemExit(
-                f"No URL entries with id={target_id}. "
-                "Provide IDs in JSON or use a single-entry URL list."
-            )
+        urls = _filter_urls_for_target_id(urls, target_id)
 
     for item in urls:
         url = item.get("url")
