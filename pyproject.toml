@@ -20,6 +20,7 @@ where = ["src"]
 dev = [
   "ruff>=0.6.0",
   "pytest>=7.0.0",
+  "pytest-cov>=4.0.0",
 ]
 
 [project.scripts]
@@ -41,3 +42,8 @@ ignore = ["E501"]
 quote-style = "double"
 indent-style = "space"
 line-ending = "auto"
+
+[tool.semantic_release]
+version_toml = ["pyproject.toml:project.version"]
+tag_format = "v{version}"
+branch = "main"

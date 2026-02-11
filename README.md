@@ -1,5 +1,7 @@
 # Maxwell-Demon
 
+![License](https://img.shields.io/github/license/nikazzio/maxwell-demon) ![Python](https://img.shields.io/badge/python-3.10%2B-blue) ![CI](https://img.shields.io/github/actions/workflow/status/nikazzio/maxwell-demon/ci.yml?branch=main) ![Coverage](https://img.shields.io/codecov/c/github/nikazzio/maxwell-demon) ![Last Commit](https://img.shields.io/github/last-commit/nikazzio/maxwell-demon) ![Issues](https://img.shields.io/github/issues/nikazzio/maxwell-demon) ![Stars](https://img.shields.io/github/stars/nikazzio/maxwell-demon?style=social)
+![License](https://img.shields.io/github/license/nikazzio/maxwell-demon) ![Python](https://img.shields.io/badge/python-3.10%2B-blue) ![Last Commit](https://img.shields.io/github/last-commit/nikazzio/maxwell-demon) ![Issues](https://img.shields.io/github/issues/nikazzio/maxwell-demon) ![Stars](https://img.shields.io/github/stars/nikazzio/maxwell-demon?style=social)
 Maxwell-Demon is a CLI tool that analyzes text files to distinguish human-written text from LLM-generated text by measuring local entropy dynamics and compression patterns. It computes windowed Shannon entropy, burstiness (variance of surprisal), and LZ-based compression ratios, exporting a clean CSV ready for plots and phase diagrams.
 
 The core idea: human texts tend to show higher local variability (burstiness) and heavier tails in surprisal distributions, while LLM text often appears smoother and more uniform. This tool gives you measurable signals to test that hypothesis.
