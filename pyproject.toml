@@ -13,6 +13,7 @@ dependencies = [
   "seaborn",
   "plotly",
   "newspaper3k",
+  "lxml_html_clean",
   "tomli; python_version < \"3.11\"",
 ]
 

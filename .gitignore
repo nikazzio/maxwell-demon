@@ -17,9 +17,10 @@ __pycache__/
 config.local.toml
 
 # Data and outputs
-data/
+data/*
 !data/README.md
 !data/urls_example.json
+!data/urls_example.txt
 results/
 plots/
 *.csv
@@ -33,3 +34,4 @@ plots/
 
 .coverage
 coverage.xml
+repomix-output.xml
