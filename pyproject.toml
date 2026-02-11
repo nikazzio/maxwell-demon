@@ -5,6 +5,16 @@ description = "CLI + library for entropy-based text analysis."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
+dependencies = [
+  "numpy",
+  "scipy",
+  "pandas",
+  "matplotlib",
+  "seaborn",
+  "plotly",
+  "newspaper3k",
+  "tomli; python_version < \"3.11\"",
+]
 
 [build-system]
 requires = ["setuptools>=61", "wheel"]
