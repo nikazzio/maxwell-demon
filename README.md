@@ -164,9 +164,9 @@ Run local coverage with the helper script:
 
 ## Codecov Graphs
 
-![Coverage Sunburst](https://codecov.io/github/nikazzio/maxwell-demon/graphs/sunburst.svg?token=EU01TE6TP8)
+![Coverage Sunburst](https://codecov.io/github/nikazzio/maxwell-demon/graphs/sunburst.svg)
 
-![Coverage Icicle](https://codecov.io/github/nikazzio/maxwell-demon/graphs/icicle.svg?token=EU01TE6TP8)
+![Coverage Icicle](https://codecov.io/github/nikazzio/maxwell-demon/graphs/icicle.svg)
 
 ## License
 
@@ -185,3 +185,7 @@ Enable it by using Conventional Commits, for example:
 
 On every push to `main`, the workflow will compute the next version, tag it,
 and publish a GitHub Release automatically.
+
+## Repomix
+
+Use `repomix.config.json` to exclude non-essential files when generating XML.
