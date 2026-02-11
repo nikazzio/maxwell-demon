@@ -1,428 +1,167 @@
-# Maxwell-Demon Parameters
+# CLI and Configuration Specification
 
-This document describes every CLI parameter in detail, with typical usage and behavior.
+## 1. Configuration Schema (TOML)
 
-## Main CLI (`maxwell-demon`)
+Reference template: `config.example.toml`.
 
-### `--input`
-Path to a single `.txt` file or a folder containing `.txt` files.
-- If a file is provided, it is analyzed directly.
-- If a folder is provided, all `.txt` files under it (recursive) are analyzed.
-- Required unless you are building a reference dictionary with `--build-ref-dict`.
+| Section | Formal scope |
+|---|---|
+| `[analysis]` | Sliding-window inference parameters (`window`, `step`, `log_base`) |
+| `[compression]` | Compression backend selection (`algorithm`) |
+| `[reference]` | Reference-corpus sources and dictionary paths |
+| `[output]` | Dataset-templated output directories (`data_dir`, `plot_dir`) |
+| `[openai]` | API integration settings |
+| `[shadow_dataset]` | Synthetic generation defaults |
 
-Example:
-```bash
-maxwell-demon --input data/thesis_human.txt --mode raw
-```
+### 1.1 `[reference]` semantics
 
-### `--mode`
-Selects the analysis mode.
-- `raw`: Pure Shannon entropy from the window's own token distribution.
-- `diff`: Differential mode using a reference dictionary (surprisal relative to a corpus).
+| Key | Definition |
+|---|---|
+| `paisa_path` | Target path for the human reference dictionary JSON |
+| `synthetic_path` | Target path for the synthetic reference dictionary JSON |
+| `paisa_url` | Remote source URI for the PAISA corpus |
+| `paisa_corpus_path` | Local cache path for PAISA text |
+| `synthetic_url` | Remote source URI for synthetic corpus text |
+| `synthetic_corpus_path` | Local cache path for synthetic text |
+| `smoothing_k` | Global add-k smoothing coefficient applied symmetrically to both dictionaries (recommended: `1.0`) |
 
-Default: `raw`
+### 1.2 `[output]` semantics
 
-Example:
-```bash
-maxwell-demon --input data/chatgpt_text.txt --mode diff --ref-dict standard_italian.json
-```
+| Key | Definition |
+|---|---|
+| `data_dir` | CSV output template, typically `results/{dataset}/data` |
+| `plot_dir` | Plot output template, typically `results/{dataset}/plot` |
 
-### `--window`
-Size of the sliding window in tokens.
-- Larger windows smooth results but reduce local sensitivity.
-- Smaller windows highlight local dynamics but can be noisier.
+`{dataset}` is inferred from input path topology when available.
 
-Default: `50`
+## 2. Canonical Execution Order
 
-### `--step`
-Step size between windows in tokens.
-- A smaller step increases overlap between windows.
-- A larger step reduces total windows (faster, less granular).
+1. `scripts/prepare_resources.py`
+2. `maxwell-demon-tournament`
+3. `maxwell-demon-phase`
 
-Default: `10`
+## 3. `prepare_resources.py`
 
-### `--output`
-Output CSV file path.
-- Only used when `--output-dir` is NOT set.
-
-Default: `results.csv`
-
-### `--output-dir`
-Output directory to write one CSV per input file.
-- When set, a CSV is created for each `.txt` file, named `<file_stem>.csv`.
-- When set, `--output` is ignored.
-
-Example:
-```bash
-maxwell-demon --input data/ --mode raw --output-dir results/
-```
-
-### `--label`
-Optional label attached to each output row.
-- Useful to differentiate sources (e.g., `human` vs `ai`).
-
-Allowed: `human`, `ai`
-
-### `--ref-dict`
-Path to a reference dictionary JSON for `diff` mode.
-- JSON must be a mapping of token -> probability.
-- Required when `--mode diff`.
-
-Example:
-```bash
-maxwell-demon --input data/chatgpt_text.txt --mode diff --ref-dict standard_italian.json
-```
-
-### `--build-ref-dict`
-Build a reference dictionary from a corpus file.
-- This mode ignores `--input` and produces a JSON mapping of token -> probability.
-- Tokenization is identical to analysis: lowercase + punctuation removal.
-
-Example:
-```bash
-maxwell-demon --build-ref-dict data/corpus.txt --ref-dict-out standard_italian.json
-```
-
-### `--build-ref-dict-from-freq`
-Build a reference dictionary from a frequency list file (word + frequency).
-- Useful for pre-LLM frequency lists (e.g., 2018 Italian word list).
-- This mode ignores `--input`.
-
-Example (with download):
-```bash
-maxwell-demon \\
-  --build-ref-dict-from-freq data/frequency_list.txt \\
-  --freq-url https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/it/it_50k.txt \\
-  --freq-cache data/frequency_list.txt \\
-  --ref-dict-out standard_italian.json
-```
-
-### `--freq-url`
-Optional URL to download a frequency list before building the reference dict.
-
-### `--freq-cache`
-Local path to save the downloaded frequency list.
-
-### `--ref-dict-out`
-Output JSON path for the reference dictionary built by `--build-ref-dict`.
-
-Default: `ref_dict.json`
-
-### `--log-base`
-Base of the logarithm used for entropy and surprisal.
-- Use `2` to get values in bits.
-- Use `e` (default) for nats.
-- Must be > 0 and not equal to 1.
-
-Default: `e` (natural log)
-
-Example:
-```bash
-maxwell-demon --input data/thesis_human.txt --mode raw --log-base 2
-```
-
-### `--compression`
-Compression algorithm for the ratio metric.
-- Options: `zlib`, `gzip`, `bz2`, `lzma`.
-
-### `--unknown-prob`
-Fallback probability for unseen tokens in `diff` mode.
-
-### `--smoothing-k`
-Add‑k smoothing used when building a reference dictionary from a corpus.
-
-## Plot CLI (`maxwell-demon-plot`)
-
-### `--input`
-Path to a single CSV or a folder of CSVs.
-- If a folder is provided, all `.csv` files under it (recursive) are loaded.
-
-### `--output`
-Output image path for the plot.
-
-Default: `plot.png`
-
-### `--metric`
-Column name to plot on the Y axis.
-- Typical values: `mean_entropy`, `entropy_variance`, `compression_ratio`, `unique_ratio`.
-
-Default: `mean_entropy`
-
-### `--hue`
-Column name used for grouping by color.
-- Typical values: `label`, `mode`, `filename`.
-
-Default: `label`
-
-## Plot CLI (`maxwell-demon-plot-html`)
-
-### `--input`
-Path to a single CSV or a folder of CSVs.
-- If a folder is provided, all `.csv` files under it (recursive) are loaded.
-
-### `--output`
-Output HTML path for the interactive plot.
-
-Default: `plot.html`
-
-### `--metric`
-Column name to plot on the Y axis.
-- Typical values: `mean_entropy`, `entropy_variance`, `compression_ratio`, `unique_ratio`.
-
-Default: `mean_entropy`
-
-### `--color`
-Column name used for grouping by color.
-- Typical values: `label`, `mode`, `filename`.
-
-Default: `label`
-
-## Plot CLI (`maxwell-demon-phase`)
-
-### `--input`
-Path to a single CSV or a folder of CSVs.
-- If a folder is provided, all `.csv` files under it (recursive) are loaded.
-
-### `--output`
-Output HTML path for the phase diagram.
-
-Default: `phase.html`
-
-### `--x`
-Column name for the X axis.
-
-Default: `mean_entropy`
-
-### `--y`
-Column name for the Y axis.
-
-Default: `compression_ratio`
-
-### `--color`
-Column name used for grouping by color.
-- Typical values: `label`, `mode`, `filename`.
-
-Default: `label`
-
-### `--facet`
-Optional column to facet by (split into panels).
-- Typical values: `filename`, `mode`.
-
-## Output CSV Columns
-
-- `filename`: Source `.txt` filename.
-- `window_id`: Sequential index of the window.
-- `mean_entropy`: Mean entropy or mean surprisal (depends on mode).
-- `entropy_variance`: Variance of surprisal in the window (burstiness proxy).
-- `compression_ratio`: `len(zlib_compressed) / len(raw_bytes)` for the window.
-- `unique_ratio`: Unique tokens / window size.
-- `mode`: `raw` or `diff`.
-- `label`: Optional label from CLI.
-- `log_base`: Log base used for entropy/surprisal.
-- `compression`: Compression algorithm used.
-
-## Preprocessing Notes
-
-- Text is lowercased.
-- Basic punctuation is removed.
-- Tokens are split on whitespace after cleaning.
-
-## Common Pitfalls
-
-- `diff` mode requires `--ref-dict`.
-- Very short texts may produce a single window.
-- If `--output-dir` is set, `--output` is ignored.
-
-## Config File (TOML)
-
-You can configure default parameters in a TOML file and override them via CLI.
-
-Example (`config.example.toml`):
-
-```toml
-[analysis]
-mode = "raw"
-window = 50
-step = 10
-log_base = 2.0
-
-[compression]
-algorithm = "zlib" # zlib, gzip, bz2, lzma
-
-[reference]
-path = "standard_italian.json"
-smoothing_k = 0.0
-unknown_prob = 1e-10
-```
-
-Run:
+Reference command:
 
 ```bash
-maxwell-demon --config config.example.toml --input data/thesis_human.txt
+python scripts/prepare_resources.py \
+  --synthetic-input data/<dataset>/ai \
+  --config config.example.toml
 ```
 
-## Dataset Workflow (Step by Step)
+### 3.1 Arguments
 
-1. Create a dataset skeleton:
-```bash
-python scripts/scripts_dataset.py init --name dataset_it_01 --count 50
-```
+| Argument | Requirement | Semantics |
+|---|---|---|
+| `--synthetic-input` | conditional | Local synthetic corpus source (`.txt` file or directory). Mutually exclusive with `--synthetic-url`. |
+| `--synthetic-url` | conditional | Remote synthetic corpus source. Mutually exclusive with `--synthetic-input`. |
+| `--synthetic-corpus-out` | optional | Overrides cached synthetic corpus path. |
+| `--config` | optional | Path to TOML configuration. |
+| `--paisa-url` | optional | Overrides `reference.paisa_url`. |
+| `--paisa-corpus-out` | optional | Overrides cached PAISA corpus path. |
+| `--human-dict-out` | optional | Overrides `reference.paisa_path`. |
+| `--synthetic-dict-out` | optional | Overrides `reference.synthetic_path`. |
+| `--smoothing-k` | optional | CLI override of smoothing coefficient. If omitted, `reference.smoothing_k` is used. |
+| `--skip-download` | optional | Enforces local-cache usage for remote corpus sources. |
 
-2. Fill the files:
-- Put human texts in `data/dataset_it_01/human/001_human.txt`, `002_human.txt`, ...
-- Put LLM texts in `data/dataset_it_01/ai/001_ai.txt`, `002_ai.txt`, ...
-- Optionally fill `data/dataset_it_01/metadata.csv`.
-- Optional: auto-fill human texts from URL lists with `scripts/scripts_fetch_human.py`.
+### 3.2 Outputs
 
-3. Validate dataset consistency:
-```bash
-python scripts/scripts_dataset.py check --name dataset_it_01
-```
+- `data/reference/paisa_ref_dict.json`
+- `data/reference/synthetic_ref_dict.json`
 
-4. Run analysis and generate results:
-```bash
-maxwell-demon --input data/dataset_it_01/human/ --mode raw --output-dir results/dataset_it_01/human/ --label human --log-base 2
-maxwell-demon --input data/dataset_it_01/ai/ --mode raw --output-dir results/dataset_it_01/ai/ --label ai --log-base 2
-```
+## 4. `maxwell-demon-tournament`
 
-5. Plot results (optional):
-```bash
-maxwell-demon-plot --input results/dataset_it_01/human/ --metric mean_entropy --hue label --output plots/dataset_it_01_entropy.png
-maxwell-demon-plot-html --input results/dataset_it_01/ --metric mean_entropy --color label --output plots/dataset_it_01_entropy.html
-maxwell-demon-phase --input results/dataset_it_01/ --x mean_entropy --y compression_ratio --color label --output plots/dataset_it_01_phase.html
-```
-
-## Global Consistency Check
+Reference command:
 
 ```bash
-python scripts/scripts_dataset.py audit
+maxwell-demon-tournament \
+  --human-input data/<dataset>/human \
+  --ai-input data/<dataset>/ai \
+  --config config.example.toml
 ```
 
-This checks all datasets under `data/` and reports missing pairs or missing metadata rows.
-It also reports how many `*_human.txt` and `*_ai.txt` stubs are still empty.
+### 4.1 Arguments
 
-## Fetch Human Articles from URLs
+| Argument | Requirement | Semantics |
+|---|---|---|
+| `--human-input` | required | Human corpus input (`.txt` file or directory). |
+| `--ai-input` | required | Synthetic corpus input (`.txt` file or directory). |
+| `--config` | optional | Path to TOML configuration. |
+| `--output` | optional | Explicit tournament CSV output path. |
+| `--window` | optional | Overrides `analysis.window`. |
+| `--step` | optional | Overrides `analysis.step`. |
+| `--log-base` | optional | Overrides `analysis.log_base`. |
+| `--compression` | optional | Overrides compression backend. |
 
-The `--urls` input supports two formats:
+### 4.2 Output artifact
 
-1. Plain text (`.txt`): one URL per line (recommended for quick collection).
-2. JSON (`.json`): list of objects with URL plus optional metadata.
+- `results/<dataset>/data/final_delta.csv`
 
-### TXT Format (quick)
+### 4.3 Output schema
 
-```txt
-# comments and empty lines are ignored
-https://example.com/article-1
-https://example.com/article-2
-```
+| Column | Statistical meaning |
+|---|---|
+| `filename` | Source text identifier |
+| `window_id` | Sliding-window ordinal index |
+| `label` | Ground-truth class (`human`, `ai`) |
+| `delta_h` | Differential entropy statistic: `H_human_ref - H_synthetic_ref` |
+| `burstiness_paisa` | Surprisal variance under the human reference |
 
-Run:
+## 5. `maxwell-demon-phase`
+
+Reference command:
 
 ```bash
-python scripts/scripts_fetch_human.py --dataset dataset_it_01 --urls data/urls_example.txt --min-words 800
+maxwell-demon-phase \
+  --input results/<dataset>/data \
+  --config config.example.toml
 ```
 
-### JSON Format (with metadata)
+### 5.1 Arguments
 
-Provide a JSON file with a list of URLs and optional metadata. Example:
+| Argument | Requirement | Semantics |
+|---|---|---|
+| `--input` | required | Single CSV file or directory of CSV files. |
+| `--config` | optional | Path to TOML configuration. |
+| `--output` | optional | Explicit HTML output path. |
+| `--x` | optional | X-axis variable. |
+| `--y` | optional | Y-axis variable. |
+| `--color` | optional | Grouping variable for color encoding. |
+| `--facet` | optional | Optional faceting variable. |
+| `--density` | optional | Forces density contour mode. |
+| `--density-threshold` | optional | Row-count threshold for density auto-switch. |
 
-```json
-[
-  {
-    "id": "001",
-    "url": "https://example.com/article-1",
-    "title": "Article 1",
-    "source_type": "editoriale"
-  }
-]
-```
+Tournament-aware default axes:
 
-Run:
+- `x = delta_h`
+- `y = burstiness_paisa`
 
-```bash
-python scripts/scripts_fetch_human.py --dataset dataset_it_01 --urls data/urls_example.json --min-words 800
-```
+Default artifact:
 
-This downloads and parses each article (text only), stores it in `data/<dataset>/human/`,
-and upserts a row in `data/<dataset>/metadata.csv`.
+- `results/<dataset>/plot/phase_delta_h_vs_burstiness_paisa.html`
 
-ID and filename behavior:
+## 6. `maxwell-demon` (single-run diagnostic mode)
 
-- Canonical target files are always `NNN_human.txt`.
-- If `id` is omitted, the script fills empty `NNN_human.txt` stubs first.
-- If no empty stubs remain, it uses the next available numeric ID.
-- Existing non-empty IDs are skipped by default.
+This interface provides local metric inspection (`raw`/`diff`) and does not substitute tournament inference.
 
-### Extra Options
+| Argument | Requirement | Semantics |
+|---|---|---|
+| `--input` | required | Input `.txt` file or directory. |
+| `--mode` | optional | `raw` or `diff`. |
+| `--window` | optional | Window length in tokens. |
+| `--step` | optional | Window shift in tokens. |
+| `--output` | optional | Aggregated CSV output path. |
+| `--output-dir` | optional | Per-file CSV output directory. |
+| `--label` | optional | Optional label annotation (`human`, `ai`). |
+| `--reference` | optional | Reference selector for `diff` mode (`paisa`, `synthetic`). |
+| `--ref-dict` | optional | Explicit reference dictionary JSON path. |
+| `--log-base` | optional | Logarithm base for entropy/surprisal. |
+| `--compression` | optional | Compression backend. |
+| `--config` | optional | Path to TOML configuration. |
 
-- `--retries`: number of download retries per URL (default: 3).
-- `--retry-delay`: seconds to wait between retries (default: 1.0).
-- `--fail-log`: path to a failure log file (default: `data/<dataset>/fetch_failures.log`).
-- `--overwrite-existing-id`: overwrite non-empty `NNN_human.txt` files.
-- `--only-id`: process only one target ID.
-- `--only-file`: process only one target file name (e.g. `012_human.txt`).
+## 7. Compression Policy
 
-Example:
+Protocol default: **LZMA**.
 
-```bash
-python scripts/scripts_fetch_human.py --dataset dataset_it_01 --urls data/urls_example.json --min-words 800 --retries 5 --retry-delay 2 --fail-log data/dataset_it_01/fetch_failures.log
-```
-
-Targeted examples:
-
-```bash
-python scripts/scripts_fetch_human.py --dataset dataset_it_01 --urls data/urls_example.json --only-id 012
-python scripts/scripts_fetch_human.py --dataset dataset_it_01 --urls data/urls_example.txt --only-file 012_human.txt
-```
-
-## Generate Shadow Dataset (AI)
-
-Create AI counterparts from the human texts of a dataset:
-
-```bash
-python scripts/generate_shadow_dataset.py --dataset dataset_it_01 --config config.local.toml
-```
-
-Default behavior:
-
-- scans `data/<dataset>/human/*.txt`
-- skips empty human files
-- writes output to `data/<dataset>/ai/*.txt`
-- skips non-empty output files
-- shows progress via `tqdm`
-- retries automatically without `temperature` if the selected model does not support it
-
-Main options:
-
-- `--overwrite-existing`: overwrite non-empty output files.
-- `--fail-log`: custom path for failures (`data/<dataset>/shadow_failures.log` by default).
-- `--dry-run`: preview actions without API calls.
-- `--config`: TOML config file path (default: `config.local.toml`).
-- `--only-id`: process only one dataset ID.
-- `--only-file`: process only one human filename (e.g. `012_human.txt`).
-
-Targeted examples:
-
-```bash
-python scripts/generate_shadow_dataset.py --dataset dataset_it_01 --config config.local.toml --only-id 012
-python scripts/generate_shadow_dataset.py --dataset dataset_it_01 --config config.local.toml --only-file 012_human.txt
-```
-
-Config keys used:
-
-- `[openai]`
-  - `api_key_env` (default `OPENAI_API_KEY`)
-  - `api_key` (keep only in local config, never in tracked files)
-- `[shadow_dataset]`
-  - `model`
-  - `temperature`
-  - `incipit_chars`
-  - `max_output_tokens`
-  - `system_prompt`
-  - `user_prompt_template`
-
-## Local Coverage
-
-```bash
-./scripts/coverage.sh
-```
+`gzip`, `bz2`, and `zlib` are maintained for controlled comparative analyses and reproducibility studies.

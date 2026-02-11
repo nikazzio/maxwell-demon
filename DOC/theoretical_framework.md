@@ -1,44 +1,82 @@
 # Theoretical Framework
 
-This section formalizes the mathematical basis of Maxwell-Demon, linking Shannon entropy, compression, and burstiness for distinguishing human-written text from LLM-generated text.
+## 1. Problem Formulation
 
-## 1) The Entropic Signature Hypothesis
+Given a text sequence, the task is to determine whether its local lexical dynamics are better explained by a human-derived or synthetic-derived reference distribution.
 
-Human language can be modeled as a non‑stationary stochastic process shaped by biological and energetic constraints: people optimize communicative efficiency but introduce structured noise (creativity, emphasis, error, stylistic deviation).
+The framework is comparative by construction: classification does not depend on absolute entropy magnitude, but on differential compatibility across two calibrated references.
 
-LLMs, by contrast, optimize a Maximum Likelihood Estimation (MLE) objective, minimizing average loss over training data. This tends to produce a statistically smoother texture: local deviations are reduced to maximize global likelihood.
+## 2. Dual-Reference Hypothesis
 
-## 2) Compression as Surprise (The Dictionary Concept)
+Let:
 
-Compressing a text with a reference dictionary $D$ is equivalent to estimating the **local cross‑entropy** against a baseline language model. The informational surprise (surprisal) of a word $w_i$ is:
+- \(\mathcal{R}_H\): human reference distribution (PAISA-derived)
+- \(\mathcal{R}_S\): synthetic reference distribution (AI-derived)
 
-$$S(w_i) = -\log_2 P_{ref}(w_i)$$
+Both references are estimated with identical preprocessing and smoothing to preserve comparability.
 
-where $P_{ref}$ is the probability of the word in a “human ground‑truth” dictionary (e.g., a 2018 Italian frequency list pre‑LLM). In coding‑theoretic terms, $S(w_i)$ is the **optimal code length** (in bits) required to compress $w_i$ if the standard language distribution were perfectly known.
+## 3. Tournament Mechanics
 
-## 3) Divergence and Residuals
+For each sliding window \(W\), the pipeline computes surprisal-based statistics under both references. Operationally, this induces four comparisons over labeled corpora:
 
-We measure the divergence between the generated text $T$ and the standard language model $M$. A token‑level approximation of Kullback–Leibler divergence is:
+1. human samples under \(\mathcal{R}_H\)
+2. human samples under \(\mathcal{R}_S\)
+3. synthetic samples under \(\mathcal{R}_H\)
+4. synthetic samples under \(\mathcal{R}_S\)
 
-$$D_{KL}(T || M) \approx \frac{1}{N} \sum_{i=1}^{N} \left(-\log P_M(w_i)\right) - H(T)$$
+The decisive statistic is the within-window entropy differential between references.
 
-where $H(T)$ is the entropy of the text itself. The tool isolates **residuals**: when an author uses unexpected words, $S(w_i)$ increases and the local compression cost rises, signaling deviations from standard language.
+## 4. Differential Entropy Statistic
 
-## 4) Burstiness: Variance as a Discriminator
+For text \(T\) and window \(W\):
 
-This is the core signal. LLMs tend to keep $S(w_i)$ relatively constant (low variance) to avoid destabilizing generation, while humans alternate common words ($S \approx 0$) with rare or highly contextual terms ($S \gg 0$).
+$$
+H_H(T,W) = \frac{1}{|W|}\sum_{w\in W} -\log P_{\mathcal{R}_H}(w)
+$$
 
-We define **burstiness** on a sliding window $W$ as the standard deviation of surprisal:
+$$
+H_S(T,W) = \frac{1}{|W|}\sum_{w\in W} -\log P_{\mathcal{R}_S}(w)
+$$
 
-$$\mathcal{B}_W = \sigma(S_W) = \sqrt{\frac{1}{|W|} \sum_{w \in W} (S(w) - \mu_W)^2}$$
+Define:
 
-High $\mathcal{B}_W$ indicates a dynamic information profile typical of human writing.
+$$
+\Delta H(T,W) = H_H(T,W) - H_S(T,W)
+$$
 
-## 5) Visual Conclusion
+In exported outputs, \(\Delta H\) is represented by `delta_h`.
 
-Projecting texts into a 2D space:
+## 5. Interpretation Regime
 
-- $X = \text{Mean Surprisal}$ (local lexical richness)
-- $Y = \text{Burstiness}$ (attention dynamics)
+- \(\Delta H > 0\): the window is relatively more probable under the human reference.
+- \(\Delta H \approx 0\) or \(\Delta H < 0\): the window is relatively more compatible with synthetic-reference regularities.
 
-reveals a **phase separation**: human texts tend to occupy high‑variance regions (criticality), while LLM texts cluster in low‑variance regions (thermodynamic equilibrium).
+Robust inference should rely on empirical distributions of \(\Delta H\), not isolated windows.
+
+## 6. Burstiness as Orthogonal Descriptor
+
+A second descriptor quantifies local fluctuation of surprisal under the human reference:
+
+$$
+B_H(T,W)=\operatorname{Var}\left(-\log P_{\mathcal{R}_H}(w)\right)_{w\in W}
+$$
+
+This quantity is exposed as `burstiness_paisa`.
+
+## 7. Phase-Space Geometry
+
+Operational visualization is conducted in the two-dimensional space:
+
+- x-axis: `delta_h`
+- y-axis: `burstiness_paisa`
+
+This embedding supports geometric separation between regions with dominant human-reference affinity and regions with dominant synthetic-reference affinity.
+
+## 8. Validity Constraint
+
+The method is formally defined only if both calibrated references are available:
+
+- `paisa_ref_dict.json`
+- `synthetic_ref_dict.json`
+
+If either reference is absent, dual-reference discrimination is underdetermined.

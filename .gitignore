@@ -18,6 +18,7 @@ config.local.toml
 
 # Data and outputs
 data/*
+data/reference/
 !data/README.md
 !data/urls_example.json
 !data/urls_example.txt

@@ -1,29 +1,26 @@
 [analysis]
-mode = "raw"
 window = 50
 step = 10
 log_base = 2.0
 
 [compression]
-# options: zlib, gzip, bz2, lzma
-algorithm = "zlib"
+algorithm = "lzma"
 
 [reference]
-# path to reference dictionary JSON (required for mode=diff)
-path = "standard_italian.json"
-# optional frequency list URL (if you want to build from an external list)
-freq_url = "https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/it/it_50k.txt"
-# optional local cache for downloaded frequency list
-freq_cache = "data/frequency_list.txt"
-# optional smoothing for probabilities (add-k)
-smoothing_k = 0.0
-# fallback probability for unknown tokens
-unknown_prob = 1e-10
+paisa_path = "data/reference/paisa_ref_dict.json"
+synthetic_path = "data/reference/synthetic_ref_dict.json"
+paisa_url = "https://raw.githubusercontent.com/italianlp-lab/paisa-corpus/main/paisa_sample.txt"
+paisa_corpus_path = "data/reference/paisa_corpus.txt"
+synthetic_url = "https://example.com/synthetic_corpus.txt"
+synthetic_corpus_path = "data/reference/synthetic_corpus.txt"
+smoothing_k = 1.0
+
+[output]
+data_dir = "results/{dataset}/data"
+plot_dir = "results/{dataset}/plot"
 
 [openai]
-# Environment variable name used to resolve the API key first.
 api_key_env = "OPENAI_API_KEY"
-# Keep empty in tracked files. Put the real key only in config.local.toml if needed.
 api_key = ""
 
 [shadow_dataset]
