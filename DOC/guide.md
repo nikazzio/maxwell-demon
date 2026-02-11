@@ -99,7 +99,7 @@ Or structured JSON with metadata (`id`, `title`, `source_type`):
 python scripts/scripts_fetch_human.py --dataset dataset_it_01 --urls data/urls_example.json --min-words 800
 ```
 
-The script writes text files into `data/<dataset>/human/` and appends rows to `metadata.csv`.
+The script writes text files into `data/<dataset>/human/` and upserts rows in `metadata.csv`.
 When the dataset was scaffolded with `scripts_dataset.py init`, it fills empty
 `NNN_human.txt` stubs in order. If no stubs are empty, it uses the next available ID.
 To avoid accidental data loss, non-empty IDs are skipped unless you pass
@@ -122,6 +122,7 @@ Rules:
 - skips non-empty AI files unless `--overwrite-existing`
 - uses filename as title and first 100 chars (default) as incipit/context
 - for punctual corrections, supports `--only-id 012` or `--only-file 012_human.txt`
+- if the selected model does not support `temperature`, the script retries automatically without it
 
 ---
 

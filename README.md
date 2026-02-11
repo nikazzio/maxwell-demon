@@ -186,6 +186,17 @@ Behavior:
 - Uses first `incipit_chars` characters as context seed.
 - Shows progress with `tqdm`.
 - For targeted fixes, process only one item with `--only-id 012` or `--only-file 012_human.txt`.
+- For models that do not support `temperature` (e.g. GPT-5 family), the script retries automatically without that parameter.
+
+Targeted examples:
+
+```bash
+# Fetch a single target ID from URL list
+python scripts/scripts_fetch_human.py --dataset dataset_it_01 --urls data/urls_example.json --only-id 012
+
+# Generate only one AI counterpart
+python scripts/generate_shadow_dataset.py --dataset dataset_it_01 --config config.local.toml --only-file 012_human.txt
+```
 
 Minimal local config (do not commit secrets):
 

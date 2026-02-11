@@ -368,6 +368,13 @@ Example:
 python scripts/scripts_fetch_human.py --dataset dataset_it_01 --urls data/urls_example.json --min-words 800 --retries 5 --retry-delay 2 --fail-log data/dataset_it_01/fetch_failures.log
 ```
 
+Targeted examples:
+
+```bash
+python scripts/scripts_fetch_human.py --dataset dataset_it_01 --urls data/urls_example.json --only-id 012
+python scripts/scripts_fetch_human.py --dataset dataset_it_01 --urls data/urls_example.txt --only-file 012_human.txt
+```
+
 ## Generate Shadow Dataset (AI)
 
 Create AI counterparts from the human texts of a dataset:
@@ -383,6 +390,7 @@ Default behavior:
 - writes output to `data/<dataset>/ai/*.txt`
 - skips non-empty output files
 - shows progress via `tqdm`
+- retries automatically without `temperature` if the selected model does not support it
 
 Main options:
 
@@ -392,6 +400,13 @@ Main options:
 - `--config`: TOML config file path (default: `config.local.toml`).
 - `--only-id`: process only one dataset ID.
 - `--only-file`: process only one human filename (e.g. `012_human.txt`).
+
+Targeted examples:
+
+```bash
+python scripts/generate_shadow_dataset.py --dataset dataset_it_01 --config config.local.toml --only-id 012
+python scripts/generate_shadow_dataset.py --dataset dataset_it_01 --config config.local.toml --only-file 012_human.txt
+```
 
 Config keys used:
 
