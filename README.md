@@ -1,7 +1,6 @@
 # Maxwell-Demon
 
 ![License](https://img.shields.io/github/license/nikazzio/maxwell-demon) ![Python](https://img.shields.io/badge/python-3.10%2B-blue) ![CI](https://img.shields.io/github/actions/workflow/status/nikazzio/maxwell-demon/ci.yml?branch=main) ![Coverage](https://img.shields.io/codecov/c/github/nikazzio/maxwell-demon) ![Last Commit](https://img.shields.io/github/last-commit/nikazzio/maxwell-demon) ![Issues](https://img.shields.io/github/issues/nikazzio/maxwell-demon) ![Stars](https://img.shields.io/github/stars/nikazzio/maxwell-demon?style=social)
-![License](https://img.shields.io/github/license/nikazzio/maxwell-demon) ![Python](https://img.shields.io/badge/python-3.10%2B-blue) ![Last Commit](https://img.shields.io/github/last-commit/nikazzio/maxwell-demon) ![Issues](https://img.shields.io/github/issues/nikazzio/maxwell-demon) ![Stars](https://img.shields.io/github/stars/nikazzio/maxwell-demon?style=social)
 Maxwell-Demon is a CLI tool that analyzes text files to distinguish human-written text from LLM-generated text by measuring local entropy dynamics and compression patterns. It computes windowed Shannon entropy, burstiness (variance of surprisal), and LZ-based compression ratios, exporting a clean CSV ready for plots and phase diagrams.
 
 The core idea: human texts tend to show higher local variability (burstiness) and heavier tails in surprisal distributions, while LLM text often appears smoother and more uniform. This tool gives you measurable signals to test that hypothesis.
@@ -60,6 +59,7 @@ See `config.example.toml` for all options.
 ## What You Get
 
 Each window produces:
+
 - `mean_entropy`: Shannon entropy (raw) or mean surprisal (diff)
 - `entropy_variance`: burstiness proxy (variance of surprisal)
 - `compression_ratio`: LZ-based compression ratio
@@ -136,7 +136,7 @@ maxwell-demon-phase --input results/dataset_it_01/ --x mean_entropy --y compress
 
 ## Why Italian (short version)
 
-Italian is a stronger test bed than English for entropy‑based analysis because its syntax is more flexible and its morphology richer. Humans naturally exploit this flexibility to create local variability (burstiness), while LLMs tend to converge on the most probable structures. Italian also reveals “translationese” patterns (e.g., overuse of pronouns) and long‑range dependencies in complex sentences, which make human vs AI differences more measurable. See `DOC/guide.md` for the full rationale.
+Italian is a stronger test bed than English for entropy‑based analysis because its syntax is more flexible and its morphology richer. Humans naturally exploit this flexibility to create local variability (burstiness), while LLMs tend to converge on the most probable structures. Italian also reveals “translationese” patterns (e.g., overuse of pronouns) and long‑range dependencies in complex sentences, which make human vs LLM differences more measurable. See `DOC/guide.md` for the full rationale.
 
 ## Fetch Human Articles
 
@@ -151,3 +151,21 @@ python scripts/scripts_fetch_human.py --dataset dataset_it_01 --urls data/urls_e
 - Burstiness is approximated as variance of token-level surprisal within each window.
 - `unique_ratio` is the ratio of unique tokens in each window.
 - Compression ratio uses `zlib` by default and can be switched to `gzip`, `bz2`, or `lzma`.
+
+## License
+
+MIT. See `LICENSE`.
+
+## Semantic Release
+
+This repo includes a GitHub Actions workflow that runs `python-semantic-release`.
+It creates version tags and GitHub Releases based on commit messages.
+
+Enable it by using Conventional Commits, for example:
+
+- `feat: add new metric` -> minor release
+- `fix: handle empty input` -> patch release
+- `feat!: change API` with `BREAKING CHANGE:` -> major release
+
+On every push to `main`, the workflow will compute the next version, tag it,
+and publish a GitHub Release automatically.

@@ -1,44 +1,44 @@
-# Fondamenti Teorici (Theoretical Framework)
+# Theoretical Framework
 
-Questa sezione formalizza la base matematica di Maxwell-Demon, collegando Entropia di Shannon, Compressione e Burstiness per la distinzione tra testi umani e testi generati da LLM.
+This section formalizes the mathematical basis of Maxwell-Demon, linking Shannon entropy, compression, and burstiness for distinguishing human-written text from LLM-generated text.
 
-## 1) L'Ipotesi della Firma Entropica
+## 1) The Entropic Signature Hypothesis
 
-Il linguaggio umano puo essere modellato come un processo stocastico non stazionario, plasmato da vincoli biologici ed energetici: gli esseri umani cercano efficienza comunicativa ma introducono rumore strutturato (creativita, enfasi, errore, deviazione stilistica).
+Human language can be modeled as a non‑stationary stochastic process shaped by biological and energetic constraints: people optimize communicative efficiency but introduce structured noise (creativity, emphasis, error, stylistic deviation).
 
-Gli LLM, al contrario, ottimizzano una funzione obiettivo di Maximum Likelihood Estimation (MLE), minimizzando la perdita media sui dati di training. Questo induce una “texture” statistica piu levigata: il modello riduce le deviazioni locali per massimizzare la verosimiglianza globale.
+LLMs, by contrast, optimize a Maximum Likelihood Estimation (MLE) objective, minimizing average loss over training data. This tends to produce a statistically smoother texture: local deviations are reduced to maximize global likelihood.
 
-## 2) La Compressione come Misura di Sorpresa (Il concetto del Dizionario)
+## 2) Compression as Surprise (The Dictionary Concept)
 
-Comprimere un testo con un dizionario di riferimento $D$ equivale a stimare la **cross‑entropy locale** rispetto a un modello linguistico di base. La **sorpresa informativa** (surprisal) di una parola $w_i$ e definita come:
+Compressing a text with a reference dictionary $D$ is equivalent to estimating the **local cross‑entropy** against a baseline language model. The informational surprise (surprisal) of a word $w_i$ is:
 
 $$S(w_i) = -\log_2 P_{ref}(w_i)$$
 
-dove $P_{ref}$ e la probabilita della parola nel dizionario “Human Ground Truth” (es. lista frequenze italiane 2018 pre‑LLM). In termini di teoria dei codici, $S(w_i)$ rappresenta la **lunghezza ottimale del codice** (in bit) necessaria per comprimere $w_i$ se la lingua standard fosse perfettamente nota.
+where $P_{ref}$ is the probability of the word in a “human ground‑truth” dictionary (e.g., a 2018 Italian frequency list pre‑LLM). In coding‑theoretic terms, $S(w_i)$ is the **optimal code length** (in bits) required to compress $w_i$ if the standard language distribution were perfectly known.
 
-## 3) La Divergenza e i Residui
+## 3) Divergence and Residuals
 
-Stiamo misurando la divergenza tra il testo generato $T$ e il modello linguistico standard $M$. Una forma approssimata della divergenza di Kullback‑Leibler sui token e:
+We measure the divergence between the generated text $T$ and the standard language model $M$. A token‑level approximation of Kullback–Leibler divergence is:
 
 $$D_{KL}(T || M) \approx \frac{1}{N} \sum_{i=1}^{N} \left(-\log P_M(w_i)\right) - H(T)$$
 
-dove $H(T)$ e l'entropia del testo stesso. Il tool isola i **residui**: quando l'autore usa parole inattese, $S(w_i)$ cresce e il costo di compressione locale aumenta, segnalando deviazioni dalla lingua standard.
+where $H(T)$ is the entropy of the text itself. The tool isolates **residuals**: when an author uses unexpected words, $S(w_i)$ increases and the local compression cost rises, signaling deviations from standard language.
 
-## 4) Burstiness: La Varianza come Discriminatore
+## 4) Burstiness: Variance as a Discriminator
 
-Questo e il cuore del metodo. Gli LLM tendono a mantenere $S(w_i)$ relativamente costante (bassa varianza) per non destabilizzare la generazione, mentre gli umani alternano parole banali ($S \approx 0$) a parole rare o fortemente contestuali ($S \gg 0$).
+This is the core signal. LLMs tend to keep $S(w_i)$ relatively constant (low variance) to avoid destabilizing generation, while humans alternate common words ($S \approx 0$) with rare or highly contextual terms ($S \gg 0$).
 
-Definiamo la **Burstiness** su una finestra mobile $W$ come la deviazione standard della surprisal:
+We define **burstiness** on a sliding window $W$ as the standard deviation of surprisal:
 
 $$\mathcal{B}_W = \sigma(S_W) = \sqrt{\frac{1}{|W|} \sum_{w \in W} (S(w) - \mu_W)^2}$$
 
-Valori alti di $\mathcal{B}_W$ indicano un dinamismo informativo tipico della produzione umana.
+High $\mathcal{B}_W$ indicates a dynamic information profile typical of human writing.
 
-## 5) Conclusione Visiva
+## 5) Visual Conclusion
 
-Proiettando i testi in uno spazio bidimensionale:
+Projecting texts into a 2D space:
 
-- $X = \text{Mean Surprisal}$ (ricchezza lessicale locale)
-- $Y = \text{Burstiness}$ (dinamica dell'attenzione)
+- $X = \text{Mean Surprisal}$ (local lexical richness)
+- $Y = \text{Burstiness}$ (attention dynamics)
 
-emerge una **separazione di fase**: i testi umani tendono a occupare regioni ad alta varianza (criticita), mentre i testi LLM si addensano in regioni a bassa varianza (equilibrio termodinamico).
+reveals a **phase separation**: human texts tend to occupy high‑variance regions (criticality), while LLM texts cluster in low‑variance regions (thermodynamic equilibrium).

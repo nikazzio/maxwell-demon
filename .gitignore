@@ -30,3 +30,6 @@ plots/
 # Editor
 .vscode/
 .idea/
+
+.coverage
+coverage.xml

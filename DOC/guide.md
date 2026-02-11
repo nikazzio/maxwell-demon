@@ -9,10 +9,10 @@ The tool operates in two modes:
 
 The typical workflow is:
 
-1. Create a dataset structure (human + AI pairs).
+1. Create a dataset structure (human + LLM pairs).
 2. Fill the dataset with texts.
 3. Validate dataset consistency.
-4. Run analysis for human and AI texts.
+4. Run analysis for human and LLM texts.
 5. Plot results (static and/or interactive).
 
 Below is a clear, step‑by‑step guide.
@@ -21,34 +21,27 @@ Below is a clear, step‑by‑step guide.
 
 ## Why Italian? (Information-Theoretic Rationale)
 
-Gemini said: **Assolutamente in Italiano.**  
-Here is the reasoning from an information‑theoretic perspective, adapted for this project:
+Below is a concise rationale for choosing Italian as the experimental language:
 
-1) **Flessibilita entropica dell'italiano**  
-L'inglese e rigido in ordine S‑V‑O. L'italiano ha morfologia ricca e sintassi piu libera, quindi l'umano puo modulare il ritmo con variazioni reali (es. inversioni, dislocazioni).  
-Gli LLM tendono a convergere sulla forma piu probabile, spesso vicina allo schema S‑V‑O, riducendo la variabilita locale. In italiano questo contrasto e piu visibile.
+1) **Entropic flexibility of Italian**  
+English has a rigid S‑V‑O order. Italian has richer morphology and freer syntax, allowing humans to modulate rhythm via real variations (inversions, dislocations). LLMs tend to converge on the statistically most probable structure, often close to canonical S‑V‑O, reducing local variability. The contrast is more visible in Italian.
 
-2) **Translationese (tracce di “traduzione interna”)**
+2) **Translationese signatures**  
+Many LLMs are optimized on English; when generating Italian they often exhibit measurable traces such as:
+- **Excess pronouns** (Italian is pro‑drop).  
+- **Anglicized adjective placement** or overly standard collocations.  
+These patterns increase redundancy and lower local entropy.
 
-Molti LLM sono ottimizzati su inglese; quando generano in italiano emergono firme statistiche tipiche:  
+3) **Long‑range dependencies (hypotaxis)**  
+Italian editorial and essayistic prose often uses long sentences with subordination and parentheticals. Humans manage this complexity with bursts of surprise, while LLMs tend to simplify (parataxis) to reduce coherence risk. The result is higher burstiness peaks in human text.
 
-- **Eccesso di pronomi** (italiano e pro‑drop).  
-- **Aggettivazione “anglicizzata”** o collocazioni troppo standard.  
-Questi pattern introducono ridondanza e abbassano l'entropia locale.
-
-3) **Dipendenze a lungo raggio (ipotassi)**
-
-L'italiano saggistico e letterario usa frasi lunghe con subordinate e incisi.  
-L'umano gestisce questa complessita con burst di sorpresa, mentre l'LLM tende a semplificare (paratassi) per ridurre il rischio di incoerenze.  
-Risultato: la **burstiness** negli umani tende a mostrare picchi piu alti.
-
-In sintesi: l'italiano e un “laboratorio” piu sensibile per rilevare la differenza tra testo umano e testo LLM.
+In short: Italian provides a more sensitive “laboratory” for entropy‑based differentiation between human and LLM text.
 
 ---
 
 ## 1) Create a Dataset Skeleton
 
-A dataset contains paired files: one human text and one AI text for the same ID.
+A dataset contains paired files: one human text and one LLM text for the same ID.
 To scaffold a dataset with 50 pairs:
 
 ```bash
@@ -79,7 +72,7 @@ These IDs define the pairings.
 Put your texts into the files created above:
 
 - Human texts go in `data/dataset_it_01/human/` as `*_human.txt`
-- AI texts go in `data/dataset_it_01/ai/` as `*_ai.txt`
+- LLM texts go in `data/dataset_it_01/ai/` as `*_ai.txt`
 
 Rules for each file:
 
@@ -94,7 +87,7 @@ This helps track the origin of each sample and makes downstream analysis cleaner
 
 ## 3) Validate Consistency
 
-Before analysis, check that every human file has a matching AI file and (optionally) a metadata row:
+Before analysis, check that every human file has a matching LLM file and (optionally) a metadata row:
 
 ```bash
 python scripts/scripts_dataset.py check --name dataset_it_01
@@ -112,10 +105,9 @@ This reports missing pairs or missing metadata IDs.
 
 ## 4) Run the Analysis
 
-You should run analysis separately for human and AI folders, so labels are clean.
+You should run analysis separately for human and LLM folders, so labels are clean.
 
 **Human analysis (raw mode):**
-
 ```bash
 maxwell-demon \
   --input data/dataset_it_01/human/ \
@@ -125,8 +117,7 @@ maxwell-demon \
   --log-base 2
 ```
 
-**AI analysis (raw mode):**
-
+**LLM analysis (raw mode):**
 ```bash
 maxwell-demon \
   --input data/dataset_it_01/ai/ \
@@ -139,17 +130,14 @@ maxwell-demon \
 This produces one CSV per input file. Each CSV contains local metrics for each window.
 
 ### Differential Mode (optional)
-
 If you want to compare texts against a reference language model:
 
 1) Build a reference dictionary from a corpus:
-
 ```bash
 maxwell-demon --build-ref-dict data/corpus.txt --ref-dict-out standard_italian.json
 ```
 
-1) Run analysis in `diff` mode:
-
+2) Run analysis in `diff` mode:
 ```bash
 maxwell-demon \
   --input data/dataset_it_01/ai/ \
@@ -167,7 +155,6 @@ maxwell-demon \
 You can generate both static PNGs and interactive HTML plots.
 
 ### Static PNG (quick inspection)
-
 ```bash
 maxwell-demon-plot \
   --input results/dataset_it_01/ \
@@ -177,7 +164,6 @@ maxwell-demon-plot \
 ```
 
 ### Interactive HTML (exploration)
-
 ```bash
 maxwell-demon-plot-html \
   --input results/dataset_it_01/ \
@@ -187,7 +173,6 @@ maxwell-demon-plot-html \
 ```
 
 ### Phase Diagram (entropy vs compression)
-
 ```bash
 maxwell-demon-phase \
   --input results/dataset_it_01/ \
@@ -210,7 +195,7 @@ Each window produces these core measurements:
   Variance of token-level surprisal inside the window. This is the burstiness proxy. Higher values indicate more local variability.
 
 - **compression_ratio**:
-  Zlib compression ratio for the window. Lower ratio means the window is more compressible (more regular patterns).
+  Compression ratio for the window. Lower ratio means the window is more compressible (more regular patterns).
 
 - **unique_ratio**:
   Number of unique tokens divided by window size. A quick measure of lexical diversity.
@@ -220,7 +205,6 @@ Each window produces these core measurements:
 ## Recommended Baseline Settings
 
 For most experiments:
-
 - `--window 50`
 - `--step 10`
 - `--log-base 2`
