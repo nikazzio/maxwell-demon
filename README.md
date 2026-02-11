@@ -114,16 +114,19 @@ maxwell-demon-phase --input results/ --x mean_entropy --y compression_ratio --co
 # 1) Create a dataset skeleton
 python scripts/scripts_dataset.py init --name dataset_it_01 --count 50
 
-# 2) Fill the files under data/dataset_it_01/human and data/dataset_it_01/ai
+# 2) Fill human files from URLs (fills empty *_human.txt stubs in ID order)
+python scripts/scripts_fetch_human.py --dataset dataset_it_01 --urls data/urls_example.txt --min-words 800
 
-# 3) Validate dataset consistency
+# 3) Fill AI files under data/dataset_it_01/ai (same IDs)
+
+# 4) Validate dataset consistency
 python scripts/scripts_dataset.py check --name dataset_it_01
 
-# 4) Run analysis
+# 5) Run analysis
 maxwell-demon --input data/dataset_it_01/human/ --mode raw --output-dir results/dataset_it_01/human/ --label human --log-base 2
 maxwell-demon --input data/dataset_it_01/ai/ --mode raw --output-dir results/dataset_it_01/ai/ --label ai --log-base 2
 
-# 5) Plot
+# 6) Plot
 maxwell-demon-plot-html --input results/dataset_it_01/ --metric mean_entropy --color label --output plots/dataset_it_01_entropy.html
 maxwell-demon-phase --input results/dataset_it_01/ --x mean_entropy --y compression_ratio --color label --output plots/dataset_it_01_phase.html
 ```
@@ -140,9 +143,29 @@ Italian is a stronger test bed than English for entropy‑based analysis because
 
 ## Fetch Human Articles
 
+Prepare a URL list first, then run the fetch script.
+
+Simple format (`data/urls_example.txt`), one URL per line:
+
+```txt
+# comments are allowed
+https://www.iltascabile.com/scienze/piante-che-pensano/
+https://www.ilpost.it/2021/06/15/app-meditazione/
+```
+
+Structured format (`data/urls_example.json`) with optional metadata (`id`, `title`, `source_type`):
+
 ```bash
+python scripts/scripts_fetch_human.py --dataset dataset_it_01 --urls data/urls_example.txt --min-words 800
 python scripts/scripts_fetch_human.py --dataset dataset_it_01 --urls data/urls_example.json --min-words 800
 ```
+
+Behavior:
+
+- If the dataset was scaffolded with `scripts_dataset.py init`, the script fills empty `NNN_human.txt` stubs first.
+- If no `id` is provided in the URL list, IDs are auto-resolved from empty stubs, then from the next available numeric ID.
+- Files are written as canonical `NNN_human.txt` (no title suffix in filename).
+- Existing non-empty IDs are skipped unless `--overwrite-existing-id` is used.
 
 ## Notes
 

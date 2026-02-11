@@ -83,6 +83,28 @@ Rules for each file:
 Optionally fill `metadata.csv` with the title and source info for each ID.
 This helps track the origin of each sample and makes downstream analysis cleaner.
 
+### Optional: Auto-fill human texts from URLs
+
+Instead of copying human texts manually, you can fetch them from article URLs.
+
+Quick URL list (`.txt`, one URL per line):
+
+```bash
+python scripts/scripts_fetch_human.py --dataset dataset_it_01 --urls data/urls_example.txt --min-words 800
+```
+
+Or structured JSON with metadata (`id`, `title`, `source_type`):
+
+```bash
+python scripts/scripts_fetch_human.py --dataset dataset_it_01 --urls data/urls_example.json --min-words 800
+```
+
+The script writes text files into `data/<dataset>/human/` and appends rows to `metadata.csv`.
+When the dataset was scaffolded with `scripts_dataset.py init`, it fills empty
+`NNN_human.txt` stubs in order. If no stubs are empty, it uses the next available ID.
+To avoid accidental data loss, non-empty IDs are skipped unless you pass
+`--overwrite-existing-id`.
+
 ---
 
 ## 3) Validate Consistency

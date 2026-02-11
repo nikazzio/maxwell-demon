@@ -272,6 +272,7 @@ python scripts/scripts_dataset.py init --name dataset_it_01 --count 50
 - Put human texts in `data/dataset_it_01/human/001_human.txt`, `002_human.txt`, ...
 - Put LLM texts in `data/dataset_it_01/ai/001_ai.txt`, `002_ai.txt`, ...
 - Optionally fill `data/dataset_it_01/metadata.csv`.
+- Optional: auto-fill human texts from URL lists with `scripts/scripts_fetch_human.py`.
 
 3. Validate dataset consistency:
 ```bash
@@ -298,8 +299,30 @@ python scripts/scripts_dataset.py audit
 ```
 
 This checks all datasets under `data/` and reports missing pairs or missing metadata rows.
+It also reports how many `*_human.txt` and `*_ai.txt` stubs are still empty.
 
 ## Fetch Human Articles from URLs
+
+The `--urls` input supports two formats:
+
+1. Plain text (`.txt`): one URL per line (recommended for quick collection).
+2. JSON (`.json`): list of objects with URL plus optional metadata.
+
+### TXT Format (quick)
+
+```txt
+# comments and empty lines are ignored
+https://example.com/article-1
+https://example.com/article-2
+```
+
+Run:
+
+```bash
+python scripts/scripts_fetch_human.py --dataset dataset_it_01 --urls data/urls_example.txt --min-words 800
+```
+
+### JSON Format (with metadata)
 
 Provide a JSON file with a list of URLs and optional metadata. Example:
 
@@ -321,13 +344,21 @@ python scripts/scripts_fetch_human.py --dataset dataset_it_01 --urls data/urls_e
 ```
 
 This downloads and parses each article (text only), stores it in `data/<dataset>/human/`,
-and appends a row to `data/<dataset>/metadata.csv`.
+and upserts a row in `data/<dataset>/metadata.csv`.
+
+ID and filename behavior:
+
+- Canonical target files are always `NNN_human.txt`.
+- If `id` is omitted, the script fills empty `NNN_human.txt` stubs first.
+- If no empty stubs remain, it uses the next available numeric ID.
+- Existing non-empty IDs are skipped by default.
 
 ### Extra Options
 
 - `--retries`: number of download retries per URL (default: 3).
 - `--retry-delay`: seconds to wait between retries (default: 1.0).
 - `--fail-log`: path to a failure log file (default: `data/<dataset>/fetch_failures.log`).
+- `--overwrite-existing-id`: overwrite non-empty `NNN_human.txt` files.
 
 Example:
 

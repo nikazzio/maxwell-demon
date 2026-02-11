@@ -2,6 +2,7 @@
 
 import argparse
 import csv
+import re
 from pathlib import Path
 
 
@@ -60,6 +61,40 @@ def _read_metadata_ids(path: Path) -> set[str]:
         return ids
 
 
+def _extract_dataset_id(path: Path, kind: str) -> str | None:
+    match = re.match(rf"^(\d+)_{kind}\.txt$", path.name)
+    if not match:
+        return None
+    return match.group(1).zfill(3)
+
+
+def _collect_ids(folder: Path, kind: str) -> set[str]:
+    ids: set[str] = set()
+    for file_path in folder.glob("*.txt"):
+        parsed = _extract_dataset_id(file_path, kind)
+        if parsed is not None:
+            ids.add(parsed)
+    return ids
+
+
+def _count_empty_stubs(folder: Path, kind: str) -> int:
+    total = 0
+    for file_path in folder.glob(f"*_{kind}.txt"):
+        text = file_path.read_text(encoding="utf-8").strip()
+        if not text:
+            total += 1
+    return total
+
+
+def _count_legacy_files(folder: Path, kind: str) -> int:
+    total = 0
+    pattern = re.compile(rf"^\d+_{kind}_.+\.txt$")
+    for file_path in folder.glob("*.txt"):
+        if pattern.match(file_path.name):
+            total += 1
+    return total
+
+
 def check_dataset(name: str) -> None:
     """Validate a dataset's file pairing and metadata coverage."""
     root = _dataset_root(name)
@@ -71,8 +106,8 @@ def check_dataset(name: str) -> None:
     if not human.is_dir() or not ai.is_dir():
         raise SystemExit("Missing human/ or ai/ directories")
 
-    human_ids = {p.stem.replace("_human", "") for p in human.glob("*_human.txt")}
-    ai_ids = {p.stem.replace("_ai", "") for p in ai.glob("*_ai.txt")}
+    human_ids = _collect_ids(human, "human")
+    ai_ids = _collect_ids(ai, "ai")
 
     missing_ai = sorted(human_ids - ai_ids)
     missing_human = sorted(ai_ids - human_ids)
@@ -88,6 +123,18 @@ def check_dataset(name: str) -> None:
 
     total_pairs = len(human_ids & ai_ids)
     print(f"Found {total_pairs} paired IDs")
+    empty_human = _count_empty_stubs(human, "human")
+    empty_ai = _count_empty_stubs(ai, "ai")
+    if empty_human:
+        print(f"Empty human stubs: {empty_human}")
+    if empty_ai:
+        print(f"Empty ai stubs: {empty_ai}")
+    legacy_human = _count_legacy_files(human, "human")
+    legacy_ai = _count_legacy_files(ai, "ai")
+    if legacy_human:
+        print(f"Legacy human filenames with suffix: {legacy_human}")
+    if legacy_ai:
+        print(f"Legacy ai filenames with suffix: {legacy_ai}")
 
     metadata_path = root / "metadata.csv"
     metadata_ids = _read_metadata_ids(metadata_path)
