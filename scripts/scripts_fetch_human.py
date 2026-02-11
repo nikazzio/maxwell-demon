@@ -44,6 +44,16 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         help="Overwrite existing non-empty <id>_human.txt when --id is provided or resolved",
     )
+    parser.add_argument(
+        "--only-id",
+        default=None,
+        help="Process only the URL entry targeting this dataset ID (e.g. 012)",
+    )
+    parser.add_argument(
+        "--only-file",
+        default=None,
+        help="Process only one target file (e.g. 012_human.txt), mapped to its ID",
+    )
     return parser.parse_args()
 
 
@@ -108,6 +118,19 @@ def _normalize_item_id(raw: str) -> str:
     if not text.isdigit():
         raise ValueError(f"Invalid id '{raw}'. Expected numeric value.")
     return text.zfill(3)
+
+
+def _resolve_only_id(only_id: str | None, only_file: str | None) -> str | None:
+    if only_id and only_file:
+        raise ValueError("Use only one selector: --only-id or --only-file")
+    if only_id:
+        return _normalize_item_id(only_id)
+    if not only_file:
+        return None
+    parsed = _parse_human_id(Path(only_file))
+    if parsed is None:
+        raise ValueError("--only-file must look like NNN_human.txt")
+    return parsed
 
 
 def _next_available_id(human_dir: Path) -> str:
@@ -194,6 +217,28 @@ def main() -> None:
     fail_log = Path(args.fail_log) if args.fail_log else dataset_root / "fetch_failures.log"
 
     urls = _load_urls(Path(args.urls))
+    target_id = _resolve_only_id(args.only_id, args.only_file)
+    if target_id is not None:
+        matching = []
+        for item in urls:
+            raw_item_id = item.get("id")
+            if not raw_item_id:
+                continue
+            try:
+                normalized = _normalize_item_id(raw_item_id)
+            except ValueError:
+                continue
+            if normalized == target_id:
+                matching.append(item)
+        if matching:
+            urls = matching
+        elif len(urls) == 1:
+            urls = [{**urls[0], "id": target_id}]
+        else:
+            raise SystemExit(
+                f"No URL entries with id={target_id}. "
+                "Provide IDs in JSON or use a single-entry URL list."
+            )
 
     for item in urls:
         url = item.get("url")

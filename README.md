@@ -118,6 +118,7 @@ python scripts/scripts_dataset.py init --name dataset_it_01 --count 50
 python scripts/scripts_fetch_human.py --dataset dataset_it_01 --urls data/urls_example.txt --min-words 800
 
 # 3) Fill AI files under data/dataset_it_01/ai (same IDs)
+python scripts/generate_shadow_dataset.py --dataset dataset_it_01 --config config.local.toml
 
 # 4) Validate dataset consistency
 python scripts/scripts_dataset.py check --name dataset_it_01
@@ -166,6 +167,41 @@ Behavior:
 - If no `id` is provided in the URL list, IDs are auto-resolved from empty stubs, then from the next available numeric ID.
 - Files are written as canonical `NNN_human.txt` (no title suffix in filename).
 - Existing non-empty IDs are skipped unless `--overwrite-existing-id` is used.
+- For targeted fixes, process only one item with `--only-id 012` or `--only-file 012_human.txt`.
+
+## Generate Shadow AI Dataset
+
+Generate AI counterparts from `data/<dataset>/human/*.txt` into `data/<dataset>/ai/*.txt`:
+
+```bash
+python scripts/generate_shadow_dataset.py --dataset dataset_it_01 --config config.local.toml
+```
+
+Behavior:
+
+- Reads all human `.txt` files.
+- Skips empty human files.
+- Skips non-empty AI files by default (use `--overwrite-existing` to replace).
+- Uses filename (without extension, underscores replaced by spaces) as title.
+- Uses first `incipit_chars` characters as context seed.
+- Shows progress with `tqdm`.
+- For targeted fixes, process only one item with `--only-id 012` or `--only-file 012_human.txt`.
+
+Minimal local config (do not commit secrets):
+
+```toml
+[openai]
+api_key_env = "OPENAI_API_KEY"
+api_key = ""
+
+[shadow_dataset]
+model = "gpt-4.1-mini"
+temperature = 0.8
+incipit_chars = 100
+max_output_tokens = 1800
+system_prompt = "Agisci come un saggista esperto. Scrivi saggi lunghi, complessi, senza elenchi puntati, ricchi di subordinate e vocabolario vario."
+user_prompt_template = "Scrivi un saggio originale di circa 1000 parole basato su questo titolo: '{TITLE}'. Usa questo incipit come ispirazione per il tono: '{INCIPIT}'."
+```
 
 ## Notes
 

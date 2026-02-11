@@ -76,3 +76,16 @@ def test_upsert_metadata_row_updates_existing_row(tmp_path: Path) -> None:
     text = metadata.read_text(encoding="utf-8")
     assert "001,New,editoriale,," in text
     assert "001,Old,blog,," not in text
+
+
+def test_resolve_only_id_from_numeric_value() -> None:
+    assert MODULE._resolve_only_id("7", None) == "007"
+
+
+def test_resolve_only_id_from_file_name() -> None:
+    assert MODULE._resolve_only_id(None, "012_human.txt") == "012"
+
+
+def test_resolve_only_id_rejects_two_selectors() -> None:
+    with pytest.raises(ValueError, match="Use only one selector"):
+        MODULE._resolve_only_id("001", "001_human.txt")
