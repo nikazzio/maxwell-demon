@@ -19,3 +19,17 @@ freq_cache = "data/frequency_list.txt"
 smoothing_k = 0.0
 # fallback probability for unknown tokens
 unknown_prob = 1e-10
+
+[openai]
+# Environment variable name used to resolve the API key first.
+api_key_env = "OPENAI_API_KEY"
+# Keep empty in tracked files. Put the real key only in config.local.toml if needed.
+api_key = ""
+
+[shadow_dataset]
+model = "gpt-4.1-mini"
+temperature = 0.8
+incipit_chars = 100
+max_output_tokens = 1800
+system_prompt = "Agisci come un saggista esperto. Scrivi saggi lunghi, complessi, senza elenchi puntati, ricchi di subordinate e vocabolario vario."
+user_prompt_template = "Scrivi un saggio originale di circa 1000 parole basato su questo titolo: '{TITLE}'. Usa questo incipit come ispirazione per il tono: '{INCIPIT}'."

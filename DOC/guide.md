@@ -99,11 +99,30 @@ Or structured JSON with metadata (`id`, `title`, `source_type`):
 python scripts/scripts_fetch_human.py --dataset dataset_it_01 --urls data/urls_example.json --min-words 800
 ```
 
-The script writes text files into `data/<dataset>/human/` and appends rows to `metadata.csv`.
+The script writes text files into `data/<dataset>/human/` and upserts rows in `metadata.csv`.
 When the dataset was scaffolded with `scripts_dataset.py init`, it fills empty
 `NNN_human.txt` stubs in order. If no stubs are empty, it uses the next available ID.
 To avoid accidental data loss, non-empty IDs are skipped unless you pass
 `--overwrite-existing-id`.
+For punctual corrections, use `--only-id 012` or `--only-file 012_human.txt`.
+
+### Optional: Auto-generate AI shadow texts
+
+You can populate `data/<dataset>/ai/` automatically from human texts with OpenAI:
+
+```bash
+python scripts/generate_shadow_dataset.py --dataset dataset_it_01 --config config.local.toml
+```
+
+Rules:
+
+- reads `data/<dataset>/human/*.txt`
+- skips empty human files
+- writes matching AI files into `data/<dataset>/ai/`
+- skips non-empty AI files unless `--overwrite-existing`
+- uses filename as title and first 100 chars (default) as incipit/context
+- for punctual corrections, supports `--only-id 012` or `--only-file 012_human.txt`
+- if the selected model does not support `temperature`, the script retries automatically without it
 
 ---
 

@@ -44,6 +44,16 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         help="Overwrite existing non-empty <id>_human.txt when --id is provided or resolved",
     )
+    parser.add_argument(
+        "--only-id",
+        default=None,
+        help="Process only the URL entry targeting this dataset ID (e.g. 012)",
+    )
+    parser.add_argument(
+        "--only-file",
+        default=None,
+        help="Process only one target file (e.g. 012_human.txt), mapped to its ID",
+    )
     return parser.parse_args()
 
 
@@ -110,6 +120,19 @@ def _normalize_item_id(raw: str) -> str:
     return text.zfill(3)
 
 
+def _resolve_only_id(only_id: str | None, only_file: str | None) -> str | None:
+    if only_id and only_file:
+        raise ValueError("Use only one selector: --only-id or --only-file")
+    if only_id:
+        return _normalize_item_id(only_id)
+    if not only_file:
+        return None
+    parsed = _parse_human_id(Path(only_file))
+    if parsed is None:
+        raise ValueError("--only-file must look like NNN_human.txt")
+    return parsed
+
+
 def _next_available_id(human_dir: Path) -> str:
     existing = _human_id_set(human_dir)
     if not existing:
@@ -126,6 +149,31 @@ def _resolve_article_id(item: dict[str, str], human_dir: Path) -> str:
     if empty_stub_ids:
         return empty_stub_ids[0]
     return _next_available_id(human_dir)
+
+
+def _filter_urls_for_target_id(urls: list[dict[str, str]], target_id: str) -> list[dict[str, str]]:
+    matching = []
+    for item in urls:
+        raw_item_id = item.get("id")
+        if not raw_item_id:
+            continue
+        try:
+            normalized = _normalize_item_id(raw_item_id)
+        except ValueError:
+            continue
+        if normalized == target_id:
+            matching.append(item)
+    if matching:
+        return matching
+
+    # TXT lists usually do not have explicit IDs: map dataset ID -> 1-based URL index.
+    index = int(target_id) - 1
+    if 0 <= index < len(urls):
+        return [{**urls[index], "id": target_id}]
+    raise SystemExit(
+        f"No URL entries with id={target_id}. "
+        "Provide IDs in JSON or ensure the TXT list has enough URL rows."
+    )
 
 
 def _upsert_metadata_row(path: Path, row: dict[str, str]) -> None:
@@ -194,6 +242,9 @@ def main() -> None:
     fail_log = Path(args.fail_log) if args.fail_log else dataset_root / "fetch_failures.log"
 
     urls = _load_urls(Path(args.urls))
+    target_id = _resolve_only_id(args.only_id, args.only_file)
+    if target_id is not None:
+        urls = _filter_urls_for_target_id(urls, target_id)
 
     for item in urls:
         url = item.get("url")
