@@ -7,12 +7,20 @@ import pandas as pd
 import seaborn as sns
 from matplotlib import pyplot as plt
 
+from maxwell_demon.config import DEFAULT_CONFIG, load_config
+from maxwell_demon.output_paths import (
+    infer_dataset_name,
+    line_plot_filename,
+    resolve_output_template,
+)
+
 
 def _parse_args() -> argparse.Namespace:
     """Parse CLI arguments."""
     parser = argparse.ArgumentParser(description="Plot Maxwell-Demon results")
+    parser.add_argument("--config", default=None, help="Path to TOML config file")
     parser.add_argument("--input", required=True, help="Input CSV or folder of CSVs")
-    parser.add_argument("--output", default="plot.png", help="Output image path")
+    parser.add_argument("--output", default=None, help="Output image path")
     parser.add_argument("--metric", default="mean_entropy", help="Metric to plot on Y axis")
     parser.add_argument(
         "--hue",
@@ -34,7 +42,16 @@ def _collect_csvs(input_path: Path) -> list[Path]:
 def main() -> None:
     """Render a line plot for a chosen metric and save a PNG."""
     args = _parse_args()
+    cfg = DEFAULT_CONFIG if args.config is None else load_config(args.config)
     input_path = Path(args.input)
+    if args.output is None:
+        dataset = infer_dataset_name([args.input])
+        plot_dir = resolve_output_template(cfg["output"]["plot_dir"], dataset)
+        output = str(Path(plot_dir) / line_plot_filename(args.metric, "png"))
+    else:
+        output = args.output
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     files = _collect_csvs(input_path)
     if not files:
         raise SystemExit("No CSV files found")
@@ -58,8 +75,8 @@ def main() -> None:
     )
     plt.title(f"{args.metric} over windows")
     plt.tight_layout()
-    plt.savefig(args.output, dpi=150)
-    print(f"Saved plot to {args.output}")
+    plt.savefig(output_path, dpi=150)
+    print(f"Saved plot to {output}")
 
 
 if __name__ == "__main__":

@@ -24,20 +24,17 @@ requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-package-dir = {"" = "src"}
+package-dir = { "" = "src" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [project.optional-dependencies]
-dev = [
-  "ruff>=0.6.0",
-  "pytest>=7.0.0",
-  "pytest-cov>=4.0.0",
-]
+dev = ["ruff>=0.6.0", "pylint>=2.17.0", "pytest>=7.0.0", "pytest-cov>=4.0.0"]
 
 [project.scripts]
 maxwell-demon = "maxwell_demon.cli:main"
+maxwell-demon-tournament = "maxwell_demon.tournament_cli:main"
 maxwell-demon-plot = "maxwell_demon.tools.plot_results:main"
 maxwell-demon-plot-html = "maxwell_demon.tools.plot_results_html:main"
 maxwell-demon-phase = "maxwell_demon.tools.plot_phase:main"

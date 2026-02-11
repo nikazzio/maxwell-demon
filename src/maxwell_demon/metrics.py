@@ -1,13 +1,13 @@
 """Entropy and surprisal metrics for Maxwell-Demon."""
 
+from __future__ import annotations
+
 import json
 import math
 from collections import Counter
 from pathlib import Path
-from urllib.request import urlretrieve
 
 import numpy as np
-from scipy.stats import entropy as scipy_entropy
 
 EPSILON = 1e-10
 
@@ -27,7 +27,9 @@ def calculate_shannon_entropy(tokens: list[str], log_base: float = math.e) -> fl
     total = len(tokens)
     probs = np.array([c / total for c in counts.values()], dtype=float)
     probs = np.clip(probs, EPSILON, 1.0)
-    return float(scipy_entropy(probs, base=log_base))
+    if log_base == math.e:
+        return float(-np.sum(probs * np.log(probs)))
+    return float(-np.sum(probs * (np.log(probs) / math.log(log_base))))
 
 
 def _surprisal_from_probs(
@@ -88,18 +90,13 @@ def surprisal_stats_from_ref(
     return float(np.mean(surprisals)), float(np.var(surprisals))
 
 
-def build_ref_dict(corpus_path: str, smoothing_k: float = 0.0) -> dict[str, float]:
-    """Build a token->probability reference dictionary from a corpus text file."""
-    from .analyzer import preprocess_text
-
-    with open(corpus_path, encoding="utf-8") as f:
-        text = f.read()
-
-    tokens = preprocess_text(text)
-    counts = Counter(tokens)
+def _normalize_counts(
+    counts: Counter[str],
+    *,
+    smoothing_k: float = 0.0,
+) -> dict[str, float]:
     if smoothing_k < 0:
         raise ValueError("smoothing_k must be >= 0")
-    vocab_size = len(counts)
     total = sum(counts.values())
     if total == 0:
         return {}
@@ -107,53 +104,35 @@ def build_ref_dict(corpus_path: str, smoothing_k: float = 0.0) -> dict[str, floa
     if smoothing_k == 0:
         return {t: c / total for t, c in counts.items()}
 
+    vocab_size = len(counts)
     denom = total + smoothing_k * vocab_size
     return {t: (c + smoothing_k) / denom for t, c in counts.items()}
 
 
-def download_frequency_list(url: str, output_path: str) -> Path:
-    """Download a frequency list file from a URL."""
-    out_path = Path(output_path)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    urlretrieve(url, out_path)
-    return out_path
+def build_ref_dict_from_tokens(tokens: list[str], smoothing_k: float = 0.0) -> dict[str, float]:
+    """Build a token->probability dictionary from a token stream."""
+    return _normalize_counts(Counter(tokens), smoothing_k=smoothing_k)
 
 
-def build_ref_dict_from_frequency_list(path: str) -> dict[str, float]:
-    """Build a token->probability dictionary from a 'word frequency' list file."""
-    total = 0
-    counts: dict[str, int] = {}
-    with open(path, encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            parts = line.split()
-            if len(parts) < 2:
-                continue
-            word, freq = parts[0], parts[1]
-            try:
-                count = int(freq)
-            except ValueError:
-                continue
-            counts[word] = count
-            total += count
+def build_ref_dict(corpus_path: str, smoothing_k: float = 0.0) -> dict[str, float]:
+    """Build a token->probability reference dictionary from a corpus text file."""
+    from .analyzer import preprocess_text
 
-    if total == 0:
-        return {}
-    return {w: c / total for w, c in counts.items()}
+    text = Path(corpus_path).read_text(encoding="utf-8")
+    return build_ref_dict_from_tokens(preprocess_text(text), smoothing_k=smoothing_k)
 
 
 def save_ref_dict(ref_dict: dict[str, float], output_path: str) -> None:
     """Persist a reference dictionary as JSON."""
-    with open(output_path, "w", encoding="utf-8") as f:
-        json.dump(ref_dict, f, ensure_ascii=False, indent=2)
+    Path(output_path).write_text(
+        json.dumps(ref_dict, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
 
 
 def load_ref_dict(path: str) -> dict[str, float]:
     """Load a reference dictionary from JSON, enforcing token->prob mapping."""
-    with open(path, encoding="utf-8") as f:
-        data = json.load(f)
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
     if not isinstance(data, dict):
         raise ValueError("Reference dictionary JSON must be an object of token->prob.")
     return {str(k): float(v) for k, v in data.items()}

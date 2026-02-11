@@ -1,10 +1,13 @@
 """Sliding-window analyzer for Maxwell-Demon."""
 
+from __future__ import annotations
+
 import bz2
 import gzip
 import lzma
 import re
 import zlib
+from collections.abc import Mapping
 
 from .metrics import (
     calculate_shannon_entropy,
@@ -13,32 +16,85 @@ from .metrics import (
 )
 
 TOKEN_CLEAN_RE = re.compile(r"[^\w\s]+", re.UNICODE)
+SUPPORTED_COMPRESSION_ALGOS = ("lzma", "gzip", "bz2", "zlib")
 
 
 def preprocess_text(text: str) -> list[str]:
     """Lowercase, remove basic punctuation, and split into tokens."""
     text = text.lower()
     text = TOKEN_CLEAN_RE.sub(" ", text)
-    tokens = text.split()
-    return tokens
+    return text.split()
 
 
-def _compression_ratio(window_text: str, algorithm: str) -> float:
-    """Compute compression ratio for a text window using a given algorithm."""
+def _compression_ratio(window_text: str, algorithm: str = "lzma") -> float:
+    """Compute compression ratio for a text window using a configured algorithm."""
+    if algorithm not in SUPPORTED_COMPRESSION_ALGOS:
+        raise ValueError("compression algorithm must be one of: lzma, gzip, bz2, zlib")
+
     raw_bytes = window_text.encode("utf-8")
     if len(raw_bytes) == 0:
         return 0.0
-    if algorithm == "zlib":
-        compressed = zlib.compress(raw_bytes)
+
+    if algorithm == "lzma":
+        compressed = lzma.compress(raw_bytes)
     elif algorithm == "gzip":
         compressed = gzip.compress(raw_bytes)
     elif algorithm == "bz2":
         compressed = bz2.compress(raw_bytes)
-    elif algorithm == "lzma":
-        compressed = lzma.compress(raw_bytes)
     else:
-        raise ValueError("compression algorithm must be one of: zlib, gzip, bz2, lzma")
+        compressed = zlib.compress(raw_bytes)
     return len(compressed) / len(raw_bytes)
+
+
+def _iter_window_tokens(tokens: list[str], window_size: int, step: int) -> list[list[str]]:
+    if window_size <= 0 or step <= 0:
+        raise ValueError("window_size and step must be positive integers")
+    if not tokens:
+        return []
+
+    if len(tokens) < window_size:
+        return [tokens]
+
+    windows: list[list[str]] = []
+    for start in range(0, len(tokens) - window_size + 1, step):
+        windows.append(tokens[start : start + window_size])
+    return windows
+
+
+def _analyze_window(
+    window_tokens: list[str],
+    *,
+    mode: str,
+    ref_dict: dict[str, float] | None,
+    log_base: float,
+    compression: str,
+    unknown_prob: float,
+) -> dict[str, float]:
+    window_text = " ".join(window_tokens)
+
+    if mode == "raw":
+        mean_entropy = calculate_shannon_entropy(window_tokens, log_base)
+        entropy_variance = entropy_variance_from_tokens(window_tokens, log_base)
+    elif mode == "diff":
+        if ref_dict is None:
+            raise ValueError("ref_dict is required for diff mode")
+        mean_entropy, entropy_variance = surprisal_stats_from_ref(
+            window_tokens,
+            ref_dict,
+            log_base,
+            unknown_prob,
+        )
+    else:
+        raise ValueError("mode must be 'raw' or 'diff'")
+
+    compression_ratio = _compression_ratio(window_text, compression)
+    unique_ratio = len(set(window_tokens)) / len(window_tokens) if window_tokens else 0.0
+    return {
+        "mean_entropy": mean_entropy,
+        "entropy_variance": entropy_variance,
+        "compression_ratio": compression_ratio,
+        "unique_ratio": unique_ratio,
+    }
 
 
 def analyze_tokens(
@@ -48,46 +104,79 @@ def analyze_tokens(
     step: int,
     ref_dict: dict[str, float] | None = None,
     log_base: float = 2.718281828459045,
-    compression: str = "zlib",
+    compression: str = "lzma",
     unknown_prob: float = 1e-10,
+    precomputed_windows: list[list[str]] | None = None,
 ) -> list[dict[str, float]]:
     """Analyze tokens with a sliding window and return per-window metrics."""
-    results: list[dict[str, float]] = []
-    if window_size <= 0 or step <= 0:
-        raise ValueError("window_size and step must be positive integers")
-
-    if len(tokens) < window_size and tokens:
-        window_starts = [0]
-    else:
-        window_starts = range(0, max(len(tokens) - window_size + 1, 0), step)
-
-    for start in window_starts:
-        window_tokens = tokens[start : start + window_size]
-        window_text = " ".join(window_tokens)
-
-        if mode == "raw":
-            mean_entropy = calculate_shannon_entropy(window_tokens, log_base)
-            entropy_variance = entropy_variance_from_tokens(window_tokens, log_base)
-        elif mode == "diff":
-            if ref_dict is None:
-                raise ValueError("ref_dict is required for diff mode")
-            mean_entropy, entropy_variance = surprisal_stats_from_ref(
-                window_tokens, ref_dict, log_base, unknown_prob
-            )
-        else:
-            raise ValueError("mode must be 'raw' or 'diff'")
-
-        compression_ratio = _compression_ratio(window_text, compression)
-        unique_ratio = len(set(window_tokens)) / len(window_tokens) if window_tokens else 0.0
-
-        results.append(
-            {
-                "window_id": len(results),
-                "mean_entropy": mean_entropy,
-                "entropy_variance": entropy_variance,
-                "compression_ratio": compression_ratio,
-                "unique_ratio": unique_ratio,
-            }
+    windows = (
+        precomputed_windows
+        if precomputed_windows is not None
+        else _iter_window_tokens(
+            tokens,
+            window_size,
+            step,
         )
+    )
 
+    results: list[dict[str, float]] = []
+    for window_id, window_tokens in enumerate(windows):
+        row = _analyze_window(
+            window_tokens,
+            mode=mode,
+            ref_dict=ref_dict,
+            log_base=log_base,
+            compression=compression,
+            unknown_prob=unknown_prob,
+        )
+        results.append({"window_id": window_id, **row})
+    return results
+
+
+def analyze_tokens_batch(
+    tokens: list[str],
+    *,
+    mode: str,
+    window_size: int,
+    step: int,
+    ref_dicts: Mapping[str, dict[str, float]] | None = None,
+    log_base: float = 2.718281828459045,
+    compression: str = "lzma",
+    unknown_prob: float = 1e-10,
+) -> dict[str, list[dict[str, float]]]:
+    """Batch analyzer optimized for tournament calls over the same token windows."""
+    windows = _iter_window_tokens(tokens, window_size, step)
+
+    if mode == "raw":
+        return {
+            "raw": analyze_tokens(
+                tokens,
+                mode="raw",
+                window_size=window_size,
+                step=step,
+                log_base=log_base,
+                compression=compression,
+                unknown_prob=unknown_prob,
+                precomputed_windows=windows,
+            )
+        }
+
+    if mode != "diff":
+        raise ValueError("mode must be 'raw' or 'diff'")
+    if not ref_dicts:
+        raise ValueError("ref_dicts is required for diff batch mode")
+
+    results: dict[str, list[dict[str, float]]] = {}
+    for name, ref_dict in ref_dicts.items():
+        results[name] = analyze_tokens(
+            tokens,
+            mode="diff",
+            window_size=window_size,
+            step=step,
+            ref_dict=ref_dict,
+            log_base=log_base,
+            compression=compression,
+            unknown_prob=unknown_prob,
+            precomputed_windows=windows,
+        )
     return results
