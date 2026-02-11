@@ -1,0 +1,32 @@
+# Python
+.ruff_cache/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.eggs/
+
+# Virtualenv
+.venv/
+
+# OS
+.DS_Store
+
+# Local configs
+config.local.toml
+
+# Data and outputs
+data/
+!data/README.md
+!data/urls_example.json
+results/
+plots/
+*.csv
+
+# Logs
+*.log
+
+# Editor
+.vscode/
+.idea/

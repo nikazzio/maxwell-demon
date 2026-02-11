@@ -1,0 +1,21 @@
+[analysis]
+mode = "raw"
+window = 50
+step = 10
+log_base = 2.0
+
+[compression]
+# options: zlib, gzip, bz2, lzma
+algorithm = "zlib"
+
+[reference]
+# path to reference dictionary JSON (required for mode=diff)
+path = "standard_italian.json"
+# optional frequency list URL (if you want to build from an external list)
+freq_url = "https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/it/it_50k.txt"
+# optional local cache for downloaded frequency list
+freq_cache = "data/frequency_list.txt"
+# optional smoothing for probabilities (add-k)
+smoothing_k = 0.0
+# fallback probability for unknown tokens
+unknown_prob = 1e-10
