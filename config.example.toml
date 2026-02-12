@@ -10,6 +10,7 @@ algorithm = "lzma"
 method = "tiktoken"
 encoding_name = "cl100k_base"
 include_punctuation = true
+fallback_to_legacy_if_tiktoken_missing = true
 
 [reference]
 paisa_path = "data/reference/paisa_ref_dict.json"

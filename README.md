@@ -188,9 +188,14 @@ Tokenization defaults:
 - `method = "tiktoken"` (recommended)
 - `encoding_name = "cl100k_base"`
 - `include_punctuation = true`
+- `fallback_to_legacy_if_tiktoken_missing = true`
 
 Backward-compatible mode is available with `method = "legacy"` (lowercase + regex punctuation stripping).
 For statistical consistency, reference-dictionary construction and runtime analysis both use the same tokenization configuration.
+If `method = "tiktoken"` and the `tiktoken` package is not available:
+
+- with `fallback_to_legacy_if_tiktoken_missing = true` (default), the runtime falls back to `legacy` and emits a warning;
+- with `fallback_to_legacy_if_tiktoken_missing = false`, execution fails with an explicit `ModuleNotFoundError`.
 
 Output paths are dataset-aware through templating:
 

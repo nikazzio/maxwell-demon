@@ -49,6 +49,7 @@ Tokenization constraint:
 - calibration and inference must share the same tokenization policy from `[tokenization]` in `config.toml`;
 - default protocol uses `tiktoken` (`cl100k_base`, punctuation included);
 - `legacy` mode is available for backward compatibility experiments.
+- if `tiktoken` is unavailable and `fallback_to_legacy_if_tiktoken_missing = true`, execution falls back to `legacy` with warning.
 
 ### 3.1 Full calibration (human + synthetic, tournament-ready)
 
