@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import gzip
 import importlib.util
+import io
 from pathlib import Path
 from types import SimpleNamespace
 
 import pandas as pd
 import pytest
-from maxwell_demon import analyzer, cli, config, metrics, tournament
+from maxwell_demon import analyzer, cli, config, metrics, output_paths, tournament
 
 
 def _base_args(**overrides: object) -> SimpleNamespace:
@@ -20,6 +21,7 @@ def _base_args(**overrides: object) -> SimpleNamespace:
         "output_dir": None,
         "label": "human",
         "reference": "paisa",
+        "human_only": False,
         "ref_dict": None,
         "log_base": 2.0,
         "compression": "lzma",
@@ -194,6 +196,43 @@ def test_cli_main_diff_uses_reference_from_config(
     assert frame["reference"].iloc[0] == "paisa"
 
 
+def test_cli_human_only_forces_diff_paisa_and_filename(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    input_file = tmp_path / "sample.txt"
+    input_file.write_text("a b c", encoding="utf-8")
+    ref_path = tmp_path / "paisa.json"
+    metrics.save_ref_dict({"a": 0.5, "b": 0.3, "c": 0.2}, str(ref_path))
+
+    cfg = config.DEFAULT_CONFIG.copy()
+    cfg["reference"] = {
+        "paisa_path": str(ref_path),
+        "synthetic_path": str(tmp_path / "synthetic.json"),
+    }
+    monkeypatch.setattr(cli, "DEFAULT_CONFIG", cfg)
+
+    args = _base_args(
+        input=str(input_file),
+        output=str(tmp_path / "out.csv"),
+        mode=None,
+        reference=None,
+        human_only=True,
+    )
+    monkeypatch.setattr(cli, "_parse_args", lambda: args)
+
+    cli.main()
+
+    frame = pd.read_csv(tmp_path / "out.csv")
+    assert frame["mode"].iloc[0] == "diff"
+    assert frame["reference"].iloc[0] == "paisa"
+
+
+def test_single_output_filename_human_only() -> None:
+    assert output_paths.single_output_filename("diff", "paisa", human_only=True) == (
+        "single_human_only_paisa.csv"
+    )
+
+
 def test_run_tournament_generates_expected_columns(tmp_path: Path) -> None:
     human = tmp_path / "human"
     ai = tmp_path / "ai"
@@ -254,10 +293,15 @@ def test_prepare_resources_reads_local_gzip_with_skip_download(
         paisa_url=None,
         paisa_corpus_out=str(paisa_gz),
         synthetic_input=str(synthetic_dir),
+        synthetic_url=None,
+        synthetic_corpus_out=None,
         human_dict_out=str(human_dict_out),
         synthetic_dict_out=str(synthetic_dict_out),
         smoothing_k=0.0,
         skip_download=True,
+        user_agent=None,
+        only_human=False,
+        only_synthetic=False,
     )
     monkeypatch.setattr(prepare_resources, "_parse_args", lambda: args)
 
@@ -275,11 +319,10 @@ def test_prepare_resources_download_decompresses_gzip_to_plain_text(
     prepare_resources = _load_prepare_resources_module()
     gz_payload = gzip.compress(b"umano umano lessico")
 
-    def fake_urlretrieve(_: str, output_path: Path) -> tuple[str, object]:
-        Path(output_path).write_bytes(gz_payload)
-        return str(output_path), None
+    def fake_urlopen(_: object) -> io.BytesIO:
+        return io.BytesIO(gz_payload)
 
-    monkeypatch.setattr(prepare_resources, "urlretrieve", fake_urlretrieve)
+    monkeypatch.setattr(prepare_resources, "urlopen", fake_urlopen)
     out_path = tmp_path / "paisa_corpus.txt"
     downloaded = prepare_resources._download_paisa("https://example.test/paisa.gz", out_path)
 
@@ -296,11 +339,11 @@ def test_prepare_resources_downloads_synthetic_from_url(
         "https://example.test/synthetic.gz": gzip.compress(b"sintetico token sintetico"),
     }
 
-    def fake_urlretrieve(url: str, output_path: Path) -> tuple[str, object]:
-        Path(output_path).write_bytes(payloads[url])
-        return str(output_path), None
+    def fake_urlopen(request: object) -> io.BytesIO:
+        url = str(getattr(request, "full_url", request))
+        return io.BytesIO(payloads[url])
 
-    monkeypatch.setattr(prepare_resources, "urlretrieve", fake_urlretrieve)
+    monkeypatch.setattr(prepare_resources, "urlopen", fake_urlopen)
 
     args = SimpleNamespace(
         config=None,
@@ -313,6 +356,7 @@ def test_prepare_resources_downloads_synthetic_from_url(
         synthetic_dict_out=str(tmp_path / "synthetic.json"),
         smoothing_k=0.0,
         skip_download=False,
+        user_agent=None,
     )
     monkeypatch.setattr(prepare_resources, "_parse_args", lambda: args)
 
@@ -322,3 +366,33 @@ def test_prepare_resources_downloads_synthetic_from_url(
     synthetic_ref = metrics.load_ref_dict(str(tmp_path / "synthetic.json"))
     assert "umana" in human_ref
     assert "sintetico" in synthetic_ref
+
+
+def test_prepare_resources_only_human_build(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    prepare_resources = _load_prepare_resources_module()
+    paisa_corpus = tmp_path / "paisa.txt"
+    paisa_corpus.write_text("parola umana parola", encoding="utf-8")
+
+    args = SimpleNamespace(
+        config=None,
+        paisa_url=None,
+        paisa_corpus_out=str(paisa_corpus),
+        synthetic_input=None,
+        synthetic_url=None,
+        synthetic_corpus_out=None,
+        human_dict_out=str(tmp_path / "human.json"),
+        synthetic_dict_out=str(tmp_path / "synthetic.json"),
+        smoothing_k=0.0,
+        skip_download=True,
+        only_human=True,
+        only_synthetic=False,
+        user_agent=None,
+    )
+    monkeypatch.setattr(prepare_resources, "_parse_args", lambda: args)
+
+    prepare_resources.main()
+
+    assert Path(tmp_path / "human.json").exists()
+    assert not Path(tmp_path / "synthetic.json").exists()

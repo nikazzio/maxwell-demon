@@ -14,7 +14,7 @@ include_punctuation = true
 [reference]
 paisa_path = "data/reference/paisa_ref_dict.json"
 synthetic_path = "data/reference/synthetic_ref_dict.json"
-paisa_url = "https://raw.githubusercontent.com/italianlp-lab/paisa-corpus/main/paisa_sample.txt"
+paisa_url = "https://clarin.eurac.edu/repository/xmlui/bitstream/handle/20.500.12124/3/paisa.raw.utf8.gz"
 paisa_corpus_path = "data/reference/paisa_corpus.txt"
 synthetic_url = "https://example.com/synthetic_corpus.txt"
 synthetic_corpus_path = "data/reference/synthetic_corpus.txt"

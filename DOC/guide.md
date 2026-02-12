@@ -50,6 +50,8 @@ Tokenization constraint:
 - default protocol uses `tiktoken` (`cl100k_base`, punctuation included);
 - `legacy` mode is available for backward compatibility experiments.
 
+### 3.1 Full calibration (human + synthetic, tournament-ready)
+
 Local synthetic source:
 
 ```bash
@@ -73,7 +75,23 @@ Mandatory artifacts:
 
 Without both references, the dual-attractor hypothesis is not operationally testable.
 
-## 4. Tournament Inference Stage
+### 3.2 Human-only calibration (single-analysis-ready)
+
+When a synthetic reference corpus is unavailable, you can build only the human dictionary:
+
+```bash
+python scripts/prepare_resources.py \
+  --only-human \
+  --config config.example.toml
+```
+
+Human-only artifact:
+
+- `data/reference/paisa_ref_dict.json`
+
+This path is suitable for `maxwell-demon` in `diff` mode with `--reference paisa`.
+
+## 4. Tournament Inference Stage (full dual-reference workflow)
 
 Objective: compute window-level differential entropy and export the consolidated score table.
 
@@ -113,6 +131,30 @@ maxwell-demon-report \
   --output results/dataset_it_01/data/final_delta.md
 ```
 
+## 5.2 Single Analysis with Human Reference Only
+
+When only the human dictionary is available, run the single CLI in `diff` mode:
+
+```bash
+maxwell-demon \
+  --input data/dataset_it_01/human \
+  --mode diff \
+  --reference paisa \
+  --config config.example.toml
+```
+
+You can also analyze AI files against the same human reference:
+
+```bash
+maxwell-demon \
+  --input data/dataset_it_01/ai \
+  --mode diff \
+  --reference paisa \
+  --config config.example.toml
+```
+
+This does not produce `delta_h` (which requires both references), but it provides surprisal-based diagnostics against the human attractor.
+
 ## 6. Interpretation Heuristics
 
 - `delta_h > 0`: increased compatibility with human-reference statistics.
@@ -130,6 +172,13 @@ Inference should be distributional (across windows and files), not pointwise.
 | calibration | `prepare_resources.py` | both reference dictionaries persisted |
 | inference | `maxwell-demon-tournament` | `final_delta.csv` + `final_delta.md` generated |
 | visualization | `maxwell-demon-phase` | phase-space map rendered |
+
+## 7.1 Minimal single-analysis trace (human-only)
+
+| Stage | Command | Expected endpoint |
+|---|---|---|
+| calibration | `prepare_resources.py --only-human` | human reference dictionary persisted |
+| inference | `maxwell-demon --mode diff --reference paisa` | single diagnostic CSV generated |
 
 ## 8. Practical Notes
 

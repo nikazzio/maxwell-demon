@@ -33,7 +33,7 @@ def _parse_args() -> argparse.Namespace:
     """Parse CLI arguments."""
     parser = argparse.ArgumentParser(description="Maxwell-Demon CLI")
     parser.add_argument("--input", required=True, help="Input .txt file or folder")
-    parser.add_argument("--mode", choices=["raw", "diff"], default="raw")
+    parser.add_argument("--mode", choices=["raw", "diff"], default=None)
     parser.add_argument("--window", type=int, default=None, help="Window size in tokens")
     parser.add_argument("--step", type=int, default=None, help="Step size in tokens")
     parser.add_argument("--output", default=None, help="Output CSV path")
@@ -46,8 +46,13 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--reference",
         choices=REFERENCE_NAMES,
-        default="paisa",
+        default=None,
         help="Reference dictionary to use in diff mode",
+    )
+    parser.add_argument(
+        "--human-only",
+        action="store_true",
+        help="Run explicit human-reference-only analysis (diff mode with PAISA reference)",
     )
     parser.add_argument(
         "--ref-dict",
@@ -78,6 +83,21 @@ def _reference_path_from_config(cfg: dict[str, object], reference_name: str) -> 
     if not isinstance(value, str) or not value:
         raise SystemExit(f"Missing config value: reference.{key}")
     return value
+
+
+def _resolve_mode_reference(args: argparse.Namespace) -> tuple[str, str]:
+    mode = args.mode or "raw"
+    reference = args.reference or "paisa"
+
+    if not args.human_only:
+        return mode, reference
+
+    if args.mode not in (None, "diff"):
+        raise SystemExit("--human-only is incompatible with --mode raw")
+    if args.reference not in (None, "paisa"):
+        raise SystemExit("--human-only is incompatible with --reference synthetic")
+
+    return "diff", "paisa"
 
 
 def run_single_analysis(
@@ -169,6 +189,7 @@ def main() -> None:
     cfg = DEFAULT_CONFIG
     if args.config:
         cfg = load_config(args.config)
+    mode, reference = _resolve_mode_reference(args)
 
     window = args.window if args.window is not None else cfg["analysis"]["window"]
     step = args.step if args.step is not None else cfg["analysis"]["step"]
@@ -179,19 +200,26 @@ def main() -> None:
     if args.output is None:
         dataset = infer_dataset_name([args.input])
         output_dir = resolve_output_template(cfg["output"]["data_dir"], dataset)
-        output = str(Path(output_dir) / single_output_filename(args.mode, args.reference))
+        output = str(
+            Path(output_dir)
+            / single_output_filename(
+                mode,
+                reference,
+                human_only=args.human_only,
+            )
+        )
     else:
         output = args.output
 
     total_rows, output = run_single_analysis(
         input_path=args.input,
-        mode=args.mode,
+        mode=mode,
         window=window,
         step=step,
         output_path=output,
         output_dir=args.output_dir,
         label=args.label,
-        reference_name=args.reference,
+        reference_name=reference,
         ref_dict_path=args.ref_dict,
         log_base=log_base,
         compression=compression,

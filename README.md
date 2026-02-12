@@ -49,6 +49,14 @@ python scripts/prepare_resources.py \
   --config config.example.toml
 ```
 
+Human-only fallback (when no synthetic corpus is available):
+
+```bash
+python scripts/prepare_resources.py \
+  --only-human \
+  --config config.example.toml
+```
+
 ### 2. Execute Tournament
 
 ```bash

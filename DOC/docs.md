@@ -71,6 +71,8 @@ python scripts/prepare_resources.py \
 | `--synthetic-input` | conditional | Local synthetic corpus source (`.txt` file or directory). Mutually exclusive with `--synthetic-url`. |
 | `--synthetic-url` | conditional | Remote synthetic corpus source. Mutually exclusive with `--synthetic-input`. |
 | `--synthetic-corpus-out` | optional | Overrides cached synthetic corpus path. |
+| `--only-human` | optional | Build only the human reference dictionary (synthetic source not required). |
+| `--only-synthetic` | optional | Build only the synthetic reference dictionary. |
 | `--config` | optional | Path to TOML configuration. |
 | `--paisa-url` | optional | Overrides `reference.paisa_url`. |
 | `--paisa-corpus-out` | optional | Overrides cached PAISA corpus path. |
@@ -83,6 +85,14 @@ python scripts/prepare_resources.py \
 
 - `data/reference/paisa_ref_dict.json`
 - `data/reference/synthetic_ref_dict.json`
+
+Human-only mode:
+
+```bash
+python scripts/prepare_resources.py --only-human --config config.example.toml
+```
+
+In this mode, only `reference.paisa_path` is produced.
 
 Tokenization coherence guarantee:
 

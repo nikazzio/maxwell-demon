@@ -60,8 +60,15 @@ def _slug(value: str) -> str:
     return _sanitize_dataset_name(value).replace("-", "_")
 
 
-def single_output_filename(mode: str, reference: str | None = None) -> str:
+def single_output_filename(
+    mode: str,
+    reference: str | None = None,
+    *,
+    human_only: bool = False,
+) -> str:
     """Build an explicit filename for single workflow outputs."""
+    if human_only:
+        return "single_human_only_paisa.csv"
     if mode == "diff" and reference:
         return f"single_diff_{_slug(reference)}.csv"
     return f"single_{_slug(mode)}.csv"
