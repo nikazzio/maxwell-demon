@@ -1,19 +1,23 @@
-"""CLI entry point for Maxwell-Demon."""
+"""CLI entry point for Maxwell-Demon single analysis."""
+
+from __future__ import annotations
 
 import argparse
+from collections.abc import Mapping
 from pathlib import Path
 
 import pandas as pd
 
-from .analyzer import analyze_tokens, preprocess_text
+from .analyzer import SUPPORTED_COMPRESSION_ALGOS, analyze_tokens, preprocess_text
 from .config import DEFAULT_CONFIG, load_config
-from .metrics import (
-    build_ref_dict,
-    build_ref_dict_from_frequency_list,
-    download_frequency_list,
-    load_ref_dict,
-    save_ref_dict,
+from .metrics import load_ref_dict
+from .output_paths import (
+    infer_dataset_name,
+    resolve_output_template,
+    single_output_filename,
 )
+
+REFERENCE_NAMES = ("paisa", "synthetic")
 
 
 def _collect_input_files(input_path: Path) -> list[Path]:
@@ -28,45 +32,33 @@ def _collect_input_files(input_path: Path) -> list[Path]:
 def _parse_args() -> argparse.Namespace:
     """Parse CLI arguments."""
     parser = argparse.ArgumentParser(description="Maxwell-Demon CLI")
-    parser.add_argument("--input", required=False, help="Input .txt file or folder")
+    parser.add_argument("--input", required=True, help="Input .txt file or folder")
     parser.add_argument("--mode", choices=["raw", "diff"], default=None)
     parser.add_argument("--window", type=int, default=None, help="Window size in tokens")
     parser.add_argument("--step", type=int, default=None, help="Step size in tokens")
-    parser.add_argument("--output", required=False, help="Output CSV path")
+    parser.add_argument("--output", default=None, help="Output CSV path")
     parser.add_argument(
         "--output-dir",
         dest="output_dir",
         help="Output directory to write one CSV per input file",
     )
     parser.add_argument("--label", choices=["human", "ai"], default=None)
-    parser.add_argument("--ref-dict", dest="ref_dict", help="Path to reference dictionary JSON")
     parser.add_argument(
-        "--build-ref-dict",
-        dest="build_ref_dict",
-        help="Build reference dictionary from corpus text file",
-    )
-    parser.add_argument(
-        "--build-ref-dict-from-freq",
-        dest="build_ref_dict_from_freq",
-        help="Build reference dictionary from a frequency list file",
-    )
-    parser.add_argument(
-        "--freq-url",
-        dest="freq_url",
+        "--reference",
+        choices=REFERENCE_NAMES,
         default=None,
-        help="Download frequency list from URL before building dict",
+        help="Reference dictionary to use in diff mode",
     )
     parser.add_argument(
-        "--freq-cache",
-        dest="freq_cache",
-        default="data/frequency_list.txt",
-        help="Local path to save downloaded frequency list",
+        "--human-only",
+        action="store_true",
+        help="Run explicit human-reference-only analysis (diff mode with PAISA reference)",
     )
     parser.add_argument(
-        "--ref-dict-out",
-        dest="ref_dict_out",
-        default="ref_dict.json",
-        help="Output JSON for built reference dictionary",
+        "--ref-dict",
+        dest="ref_dict",
+        default=None,
+        help="Optional explicit path to a reference dictionary JSON",
     )
     parser.add_argument(
         "--log-base",
@@ -76,89 +68,77 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--compression",
-        choices=["zlib", "gzip", "bz2", "lzma"],
+        choices=list(SUPPORTED_COMPRESSION_ALGOS),
         default=None,
-        help="Compression algorithm for ratio",
-    )
-    parser.add_argument(
-        "--unknown-prob",
-        type=float,
-        default=None,
-        help="Fallback probability for unseen tokens (diff mode)",
-    )
-    parser.add_argument(
-        "--smoothing-k",
-        type=float,
-        default=None,
-        help="Add-k smoothing for reference dictionary building",
+        help="Compression algorithm for ratio (default from config)",
     )
     parser.add_argument("--config", help="Path to TOML config file")
     return parser.parse_args()
 
 
-def main() -> None:
-    """Run CLI workflow: parse args, analyze input, write CSV."""
-    args = _parse_args()
+def _reference_path_from_config(cfg: dict[str, object], reference_name: str) -> str:
+    reference_cfg = cfg["reference"]
+    key = f"{reference_name}_path"
+    value = reference_cfg[key]
+    if not isinstance(value, str) or not value:
+        raise SystemExit(f"Missing config value: reference.{key}")
+    return value
 
-    cfg = DEFAULT_CONFIG
-    if args.config:
-        cfg = load_config(args.config)
 
-    mode = args.mode if args.mode is not None else cfg["analysis"]["mode"]
-    window = args.window if args.window is not None else cfg["analysis"]["window"]
-    step = args.step if args.step is not None else cfg["analysis"]["step"]
-    log_base = args.log_base if args.log_base is not None else cfg["analysis"]["log_base"]
-    compression = (
-        args.compression if args.compression is not None else cfg["compression"]["algorithm"]
-    )
-    unknown_prob = (
-        args.unknown_prob if args.unknown_prob is not None else cfg["reference"]["unknown_prob"]
-    )
-    smoothing_k = (
-        args.smoothing_k if args.smoothing_k is not None else cfg["reference"]["smoothing_k"]
-    )
-    ref_dict_path = args.ref_dict if args.ref_dict is not None else cfg["reference"]["path"]
+def _resolve_mode_reference(args: argparse.Namespace) -> tuple[str, str]:
+    mode = args.mode or "raw"
+    reference = args.reference or "paisa"
 
-    if args.build_ref_dict:
-        corpus_path = Path(args.build_ref_dict)
-        ref_dict = build_ref_dict(str(corpus_path), smoothing_k=smoothing_k)
-        save_ref_dict(ref_dict, args.ref_dict_out)
-        print(f"Reference dictionary saved to {args.ref_dict_out} ({len(ref_dict)} tokens)")
-        return
-    if args.build_ref_dict_from_freq:
-        freq_path = Path(args.build_ref_dict_from_freq)
-        if args.freq_url:
-            freq_path = download_frequency_list(args.freq_url, args.freq_cache)
-        ref_dict = build_ref_dict_from_frequency_list(str(freq_path))
-        save_ref_dict(ref_dict, args.ref_dict_out)
-        print(f"Reference dictionary saved to {args.ref_dict_out} ({len(ref_dict)} tokens)")
-        return
+    if not args.human_only:
+        return mode, reference
 
-    if not args.input:
-        raise SystemExit("--input is required unless using --build-ref-dict")
+    if args.mode not in (None, "diff"):
+        raise SystemExit("--human-only is incompatible with --mode raw")
+    if args.reference not in (None, "paisa"):
+        raise SystemExit("--human-only is incompatible with --reference synthetic")
 
-    input_path = Path(args.input)
-    output_path = Path(args.output) if args.output else Path("results.csv")
-    output_dir = Path(args.output_dir) if args.output_dir else None
+    return "diff", "paisa"
+
+
+def run_single_analysis(
+    *,
+    input_path: str | Path,
+    mode: str,
+    window: int,
+    step: int,
+    output_path: str | Path,
+    output_dir: str | Path | None,
+    label: str | None,
+    reference_name: str,
+    ref_dict_path: str | None,
+    log_base: float,
+    compression: str,
+    cfg: dict[str, object],
+) -> tuple[int, Path]:
+    """Execute single raw/diff analysis and save CSV output(s)."""
+    files = _collect_input_files(Path(input_path))
+    if not files:
+        raise SystemExit("No .txt files found in input")
 
     if log_base <= 0 or log_base == 1.0:
         raise SystemExit("--log-base must be > 0 and != 1")
 
-    files = _collect_input_files(input_path)
-    if not files:
-        raise SystemExit("No .txt files found in input")
-
-    ref_dict: dict[str, float] | None = None
     if mode == "diff":
-        if not ref_dict_path:
-            raise SystemExit("--ref-dict is required for diff mode")
-        ref_dict = load_ref_dict(ref_dict_path)
+        path = ref_dict_path or _reference_path_from_config(cfg, reference_name)
+        ref_dict = load_ref_dict(path)
+    else:
+        ref_dict = None
 
     rows: list[dict[str, object]] = []
+    out_dir = Path(output_dir) if output_dir else None
+
+    tokenization_cfg = cfg["tokenization"]
+    if not isinstance(tokenization_cfg, Mapping):
+        raise SystemExit("Invalid config section: tokenization")
 
     for file_path in files:
         text = file_path.read_text(encoding="utf-8", errors="ignore")
-        tokens = preprocess_text(text)
+        tokens = preprocess_text(text, tokenization=tokenization_cfg)
         window_results = analyze_tokens(
             tokens=tokens,
             mode=mode,
@@ -167,7 +147,6 @@ def main() -> None:
             ref_dict=ref_dict,
             log_base=log_base,
             compression=compression,
-            unknown_prob=unknown_prob,
         )
 
         file_rows: list[dict[str, object]] = []
@@ -180,24 +159,73 @@ def main() -> None:
                 "compression_ratio": row["compression_ratio"],
                 "unique_ratio": row["unique_ratio"],
                 "mode": mode,
-                "label": args.label,
+                "label": label,
                 "log_base": log_base,
                 "compression": compression,
+                "reference": reference_name if mode == "diff" else None,
             }
             file_rows.append(record)
             rows.append(record)
 
-        if output_dir:
-            output_dir.mkdir(parents=True, exist_ok=True)
-            out_file = output_dir / f"{file_path.stem}.csv"
+        if out_dir:
+            out_dir.mkdir(parents=True, exist_ok=True)
+            out_file = out_dir / f"{file_path.stem}.csv"
             pd.DataFrame(file_rows).to_csv(out_file, index=False)
 
-    if not output_dir:
-        df = pd.DataFrame(rows)
-        df.to_csv(output_path, index=False)
-        print(f"Saved {len(df)} rows to {output_path}")
+    output = Path(output_path)
+    if out_dir is None:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        pd.DataFrame(rows).to_csv(output, index=False)
     else:
-        print(f"Saved {len(rows)} rows to {output_dir}")
+        output = out_dir
+
+    return len(rows), output
+
+
+def main() -> None:
+    """Run CLI workflow for single analysis."""
+    args = _parse_args()
+
+    cfg = DEFAULT_CONFIG
+    if args.config:
+        cfg = load_config(args.config)
+    mode, reference = _resolve_mode_reference(args)
+
+    window = args.window if args.window is not None else cfg["analysis"]["window"]
+    step = args.step if args.step is not None else cfg["analysis"]["step"]
+    log_base = args.log_base if args.log_base is not None else cfg["analysis"]["log_base"]
+    compression = (
+        args.compression if args.compression is not None else cfg["compression"]["algorithm"]
+    )
+    if args.output is None:
+        dataset = infer_dataset_name([args.input])
+        output_dir = resolve_output_template(cfg["output"]["data_dir"], dataset)
+        output = str(
+            Path(output_dir)
+            / single_output_filename(
+                mode,
+                reference,
+                human_only=args.human_only,
+            )
+        )
+    else:
+        output = args.output
+
+    total_rows, output = run_single_analysis(
+        input_path=args.input,
+        mode=mode,
+        window=window,
+        step=step,
+        output_path=output,
+        output_dir=args.output_dir,
+        label=args.label,
+        reference_name=reference,
+        ref_dict_path=args.ref_dict,
+        log_base=log_base,
+        compression=compression,
+        cfg=cfg,
+    )
+    print(f"Saved {total_rows} rows to {output}")
 
 
 if __name__ == "__main__":

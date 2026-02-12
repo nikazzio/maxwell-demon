@@ -1,9 +1,11 @@
-# Documentazione Maxwell-Demon
+# Maxwell-Demon Documentation
 
-Questa cartella contiene tutta la documentazione tecnica del progetto.
+This directory contains the formal technical documentation for the Maxwell-Demon methodology and tooling.
 
-## Indice
+## Contents
 
-- `docs.md` — Parametri CLI dettagliati e opzioni di configurazione
-- `guide.md` — Workflow passo‑passo per dataset, analisi e plotting
-- `theoretical_framework.md` — Fondamenti teorici (entropia, compressione, burstiness)
+- `docs.md`: normative CLI/configuration specification
+- `guide.md`: operational protocol for end-to-end execution
+- `theoretical_framework.md`: mathematical/statistical foundations of the dual-reference method
+
+Reporting details (automatic tournament report + standalone `maxwell-demon-report`) are documented in `docs.md` and `guide.md`.

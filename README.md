@@ -1,261 +1,143 @@
 # Maxwell-Demon
 
-![License](https://img.shields.io/github/license/nikazzio/maxwell-demon) ![Python](https://img.shields.io/badge/python-3.10%2B-blue) ![CI](https://img.shields.io/github/actions/workflow/status/nikazzio/maxwell-demon/ci.yml?branch=main) ![Coverage](https://img.shields.io/codecov/c/github/nikazzio/maxwell-demon) ![Last Commit](https://img.shields.io/github/last-commit/nikazzio/maxwell-demon) ![Issues](https://img.shields.io/github/issues/nikazzio/maxwell-demon) ![Stars](https://img.shields.io/github/stars/nikazzio/maxwell-demon?style=social)
-Maxwell-Demon is a CLI tool that analyzes text files to distinguish human-written text from LLM-generated text by measuring local entropy dynamics and compression patterns. It computes windowed Shannon entropy, burstiness (variance of surprisal), and LZ-based compression ratios, exporting a clean CSV ready for plots and phase diagrams.
+![License](https://img.shields.io/github/license/nikazzio/maxwell-demon) ![Python](https://img.shields.io/badge/python-3.10%2B-blue) ![CI](https://img.shields.io/github/actions/workflow/status/nikazzio/maxwell-demon/ci.yml?branch=main) ![Coverage](https://img.shields.io/codecov/c/github/nikazzio/maxwell-demon)
 
-The core idea: human texts tend to show higher local variability (burstiness) and heavier tails in surprisal distributions, while LLM text often appears smoother and more uniform. This tool gives you measurable signals to test that hypothesis.
+Maxwell-Demon is a Python package and CLI toolkit for binary discrimination between human-authored and machine-generated text via a dual-reference entropy protocol.
 
-## Setup
+The primary decision statistic is the window-wise entropy differential:
+
+$$
+\Delta H(T, W) = H_{\text{Human Ref}}(T, W) - H_{\text{Synthetic Ref}}(T, W)
+$$
+
+where each entropy term is the mean token surprisal under a calibrated reference distribution.
+
+## Environment Setup
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-## Development (optional)
-
-```bash
 pip install -e '.[dev]'
-ruff check .
-ruff format .
 ```
 
-## Tests
+## Core Pipeline
+
+| Command | Role in the protocol |
+|---|---|
+| `python scripts/prepare_resources.py` | Reference calibration (human + synthetic dictionaries) |
+| `maxwell-demon-tournament` | Dual-reference scoring and delta extraction |
+| `maxwell-demon-report` | Standalone Markdown report generation from a tournament CSV |
+| `maxwell-demon-phase` | Phase-space rendering (`delta_h`, `burstiness_paisa`) |
+
+## Minimal Reproducible Run
+
+### 1. Calibrate References
+
+Using local synthetic text:
 
 ```bash
-python -m pytest
+python scripts/prepare_resources.py \
+  --synthetic-input data/dataset_it_01/ai \
+  --config config.example.toml
 ```
 
-## Usage
+Using remote synthetic text:
 
 ```bash
-# Raw analysis
-maxwell-demon --input data/thesis_human.txt --mode raw --window 50 --step 10 --output results_human.csv --label human --log-base 2
-
-# Differential analysis (with reference dictionary)
-maxwell-demon --input data/chatgpt_text.txt --mode diff --ref-dict standard_italian.json --output results_ai.csv --label ai --log-base 2
-
-# Batch folder with per-file outputs
-maxwell-demon --input data/ --mode raw --output-dir results/ --log-base 2
+python scripts/prepare_resources.py \
+  --synthetic-url https://example.com/synthetic_corpus.txt.gz \
+  --config config.example.toml
 ```
 
-If you prefer not to install the CLI entrypoint:
+Human-only fallback (when no synthetic corpus is available):
 
 ```bash
-python -m maxwell_demon.cli --input data/thesis_human.txt --mode raw
+python scripts/prepare_resources.py \
+  --only-human \
+  --config config.example.toml
 ```
 
-## Config File (TOML)
-
-You can place defaults in a config file and override them via CLI flags:
+### 2. Execute Tournament
 
 ```bash
-maxwell-demon --config config.example.toml --input data/thesis_human.txt
+maxwell-demon-tournament \
+  --human-input data/dataset_it_01/human \
+  --ai-input data/dataset_it_01/ai \
+  --config config.example.toml
 ```
 
-See `config.example.toml` for all options.
+Default artifact:
 
-## What You Get
+- `results/dataset_it_01/data/final_delta.csv`
+- `results/dataset_it_01/data/final_delta.md` (auto-generated report)
 
-Each window produces:
-
-- `mean_entropy`: Shannon entropy (raw) or mean surprisal (diff)
-- `entropy_variance`: burstiness proxy (variance of surprisal)
-- `compression_ratio`: LZ-based compression ratio
-- `unique_ratio`: lexical diversity in the window
-
-All results are exported to CSV for plotting or statistical analysis.
-
-## Library Usage
-
-```python
-from maxwell_demon import analyze_tokens, preprocess_text
-
-tokens = preprocess_text(\"testo di esempio...\")
-rows = analyze_tokens(tokens, mode=\"raw\", window_size=50, step=10)
-```
-
-## Build Reference Dictionary
+### 3. Inspect Phase Space
 
 ```bash
-maxwell-demon --build-ref-dict data/corpus.txt --ref-dict-out standard_italian.json
+maxwell-demon-phase \
+  --input results/dataset_it_01/data \
+  --config config.example.toml
 ```
 
-## Build Reference Dictionary From Frequency List
+Default artifact:
+
+- `results/dataset_it_01/plot/phase_delta_h_vs_burstiness_paisa.html`
+
+## Compression Regime
+
+Protocol default: `lzma`.
+
+Alternative codecs (`gzip`, `bz2`, `zlib`) are available for ablation and sensitivity analyses, but `lzma` is the operational baseline.
+
+## Configuration Model
+
+Canonical template: `config.example.toml`.
+
+Top-level sections:
+
+- `[analysis]`
+- `[compression]`
+- `[tokenization]`
+- `[reference]`
+- `[output]`
+- `[openai]`
+- `[shadow_dataset]`
+
+Tokenization defaults:
+
+- `method = "tiktoken"` (recommended)
+- `encoding_name = "cl100k_base"`
+- `include_punctuation = true`
+
+Backward-compatible mode is available with `method = "legacy"` (lowercase + regex punctuation stripping).
+For statistical consistency, reference-dictionary construction and runtime analysis both use the same tokenization configuration.
+
+Output paths are dataset-aware through templating:
+
+- data: `results/{dataset}/data`
+- plots: `results/{dataset}/plot`
+
+## Auxiliary Interfaces
+
+- `maxwell-demon`: single-run diagnostics (`raw`, `diff`)
+- `maxwell-demon-plot`: static PNG trajectory plot
+- `maxwell-demon-plot-html`: interactive HTML trajectory plot
+- `maxwell-demon-report`: standalone Markdown report tool (`--input`, `--output`)
+- `scripts/run_analysis.py`: wrapper for single/tournament execution modes
+
+## Verification
 
 ```bash
-maxwell-demon \\
-  --build-ref-dict-from-freq data/frequency_list.txt \\
-  --freq-url https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/it/it_50k.txt \\
-  --freq-cache data/frequency_list.txt \\
-  --ref-dict-out standard_italian.json
+.venv/bin/ruff check .
+PYTHONPATH=src .venv/bin/python -m pytest tests
 ```
 
-## Plot Results
+## Documentation Map
 
-```bash
-# Plot mean entropy over time, colored by label
-maxwell-demon-plot --input results_human.csv --metric mean_entropy --hue label --output plots/entropy.png
-
-# Plot burstiness (entropy variance) from a folder of CSVs
-maxwell-demon-plot --input results/ --metric entropy_variance --hue filename --output plots/burstiness.png
-
-# Interactive HTML plot
-maxwell-demon-plot-html --input results/ --metric mean_entropy --color label --output plots/entropy.html
-
-# Phase diagram (entropy vs compression)
-maxwell-demon-phase --input results/ --x mean_entropy --y compression_ratio --color label --output plots/phase.html
-```
-
-## Dataset Workflow (Quick Start)
-
-```bash
-# 1) Create a dataset skeleton
-python scripts/scripts_dataset.py init --name dataset_it_01 --count 50
-
-# 2) Fill human files from URLs (fills empty *_human.txt stubs in ID order)
-python scripts/scripts_fetch_human.py --dataset dataset_it_01 --urls data/urls_example.txt --min-words 800
-
-# 3) Fill AI files under data/dataset_it_01/ai (same IDs)
-python scripts/generate_shadow_dataset.py --dataset dataset_it_01 --config config.local.toml
-
-# 4) Validate dataset consistency
-python scripts/scripts_dataset.py check --name dataset_it_01
-
-# 5) Run analysis
-maxwell-demon --input data/dataset_it_01/human/ --mode raw --output-dir results/dataset_it_01/human/ --label human --log-base 2
-maxwell-demon --input data/dataset_it_01/ai/ --mode raw --output-dir results/dataset_it_01/ai/ --label ai --log-base 2
-
-# 6) Plot
-maxwell-demon-plot-html --input results/dataset_it_01/ --metric mean_entropy --color label --output plots/dataset_it_01_entropy.html
-maxwell-demon-phase --input results/dataset_it_01/ --x mean_entropy --y compression_ratio --color label --output plots/dataset_it_01_phase.html
-```
-
-## Documentation
-
-- `DOC/docs.md` — Detailed CLI parameters and options
-- `DOC/guide.md` — Step‑by‑step workflow for dataset creation, validation, analysis, and plotting
-- `DOC/theoretical_framework.md` — Fondamenti teorici (entropia, compressione, burstiness)
-
-## Why Italian (short version)
-
-Italian is a stronger test bed than English for entropy‑based analysis because its syntax is more flexible and its morphology richer. Humans naturally exploit this flexibility to create local variability (burstiness), while LLMs tend to converge on the most probable structures. Italian also reveals “translationese” patterns (e.g., overuse of pronouns) and long‑range dependencies in complex sentences, which make human vs LLM differences more measurable. See `DOC/guide.md` for the full rationale.
-
-## Fetch Human Articles
-
-Prepare a URL list first, then run the fetch script.
-
-Simple format (`data/urls_example.txt`), one URL per line:
-
-```txt
-# comments are allowed
-https://www.iltascabile.com/scienze/piante-che-pensano/
-https://www.ilpost.it/2021/06/15/app-meditazione/
-```
-
-Structured format (`data/urls_example.json`) with optional metadata (`id`, `title`, `source_type`):
-
-```bash
-python scripts/scripts_fetch_human.py --dataset dataset_it_01 --urls data/urls_example.txt --min-words 800
-python scripts/scripts_fetch_human.py --dataset dataset_it_01 --urls data/urls_example.json --min-words 800
-```
-
-Behavior:
-
-- If the dataset was scaffolded with `scripts_dataset.py init`, the script fills empty `NNN_human.txt` stubs first.
-- If no `id` is provided in the URL list, IDs are auto-resolved from empty stubs, then from the next available numeric ID.
-- Files are written as canonical `NNN_human.txt` (no title suffix in filename).
-- Existing non-empty IDs are skipped unless `--overwrite-existing-id` is used.
-- For targeted fixes, process only one item with `--only-id 012` or `--only-file 012_human.txt`.
-
-## Generate Shadow AI Dataset
-
-Generate AI counterparts from `data/<dataset>/human/*.txt` into `data/<dataset>/ai/*.txt`:
-
-```bash
-python scripts/generate_shadow_dataset.py --dataset dataset_it_01 --config config.local.toml
-```
-
-Behavior:
-
-- Reads all human `.txt` files.
-- Skips empty human files.
-- Skips non-empty AI files by default (use `--overwrite-existing` to replace).
-- Uses filename (without extension, underscores replaced by spaces) as title.
-- Uses first `incipit_chars` characters as context seed.
-- Shows progress with `tqdm`.
-- For targeted fixes, process only one item with `--only-id 012` or `--only-file 012_human.txt`.
-- For models that do not support `temperature` (e.g. GPT-5 family), the script retries automatically without that parameter.
-
-Targeted examples:
-
-```bash
-# Fetch a single target ID from URL list
-python scripts/scripts_fetch_human.py --dataset dataset_it_01 --urls data/urls_example.json --only-id 012
-
-# Generate only one AI counterpart
-python scripts/generate_shadow_dataset.py --dataset dataset_it_01 --config config.local.toml --only-file 012_human.txt
-```
-
-Minimal local config (do not commit secrets):
-
-```toml
-[openai]
-api_key_env = "OPENAI_API_KEY"
-api_key = ""
-
-[shadow_dataset]
-model = "gpt-4.1-mini"
-temperature = 0.8
-incipit_chars = 100
-max_output_tokens = 1800
-system_prompt = "Agisci come un saggista esperto. Scrivi saggi lunghi, complessi, senza elenchi puntati, ricchi di subordinate e vocabolario vario."
-user_prompt_template = "Scrivi un saggio originale di circa 1000 parole basato su questo titolo: '{TITLE}'. Usa questo incipit come ispirazione per il tono: '{INCIPIT}'."
-```
-
-## Notes
-
-- Tokenization is minimal: lowercase + basic punctuation removal.
-- Entropy and surprisal use the specified log base (`--log-base`).
-- Burstiness is approximated as variance of token-level surprisal within each window.
-- `unique_ratio` is the ratio of unique tokens in each window.
-- Compression ratio uses `zlib` by default and can be switched to `gzip`, `bz2`, or `lzma`.
-
-
-## Coverage (Local)
-
-Run local coverage with the helper script:
-
-```bash
-./scripts/coverage.sh
-```
-
-
-## Codecov Graphs
-
-![Coverage Sunburst](https://codecov.io/github/nikazzio/maxwell-demon/graphs/sunburst.svg)
-
-![Coverage Icicle](https://codecov.io/github/nikazzio/maxwell-demon/graphs/icicle.svg)
+- `DOC/theoretical_framework.md`
+- `DOC/docs.md`
+- `DOC/guide.md`
 
 ## License
 
-MIT. See `LICENSE`.
-
-## Semantic Release
-
-This repo includes a GitHub Actions workflow that runs `python-semantic-release`.
-It creates version tags and GitHub Releases based on commit messages.
-
-Enable it by using Conventional Commits, for example:
-
-- `feat: add new metric` -> minor release
-- `fix: handle empty input` -> patch release
-- `feat!: change API` with `BREAKING CHANGE:` -> major release
-
-On every push to `main`, the workflow will compute the next version, tag it,
-and publish a GitHub Release automatically.
-
-## Repomix
-
-Use `repomix.config.json` to exclude non-essential files when generating XML.
+MIT (`LICENSE`).
