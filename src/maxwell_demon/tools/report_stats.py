@@ -56,7 +56,9 @@ def _classification_metrics(df: pd.DataFrame) -> dict[str, float | int] | None:
         return None
 
     y_true_human = labels[valid_mask].to_numpy() == "human"
-    y_pred_human = df.loc[valid_mask, "delta_h"].to_numpy(dtype=float) > 0.0
+    # Coherent with delta_h = H_human_ref - H_synthetic_ref:
+    # lower delta_h implies stronger compatibility with human reference.
+    y_pred_human = df.loc[valid_mask, "delta_h"].to_numpy(dtype=float) < 0.0
 
     tp = int(np.sum(y_pred_human & y_true_human))
     tn = int(np.sum((~y_pred_human) & (~y_true_human)))
@@ -105,7 +107,7 @@ def generate_report(df: pd.DataFrame) -> str:
     if metrics is None:
         lines.extend(
             [
-                "## Classification Metrics (Rule: delta_h > 0 is Human)",
+                "## Classification Metrics (Rule: delta_h < 0 is Human)",
                 "_Unavailable: missing or invalid `label` values (`human`/`ai`)._",
                 "",
             ]
@@ -113,7 +115,7 @@ def generate_report(df: pd.DataFrame) -> str:
     else:
         lines.extend(
             [
-                "## Classification Metrics (Rule: delta_h > 0 is Human)",
+                "## Classification Metrics (Rule: delta_h < 0 is Human)",
                 f"- **Samples evaluated**: {metrics['n']}",
                 f"- **Accuracy**: {metrics['accuracy']:.6f}",
                 f"- **Precision (Human)**: {metrics['precision_human']:.6f}",

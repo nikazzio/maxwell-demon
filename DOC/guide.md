@@ -157,8 +157,9 @@ This does not produce `delta_h` (which requires both references), but it provide
 
 ## 6. Interpretation Heuristics
 
-- `delta_h > 0`: increased compatibility with human-reference statistics.
-- `delta_h \approx 0` or `delta_h < 0`: increased compatibility with synthetic-reference statistics.
+- lower `delta_h`: lower surprisal under the human reference relative to the synthetic reference.
+- higher `delta_h`: lower surprisal under the synthetic reference relative to the human reference.
+- `delta_h \approx 0`: comparable compatibility under both references.
 - large `burstiness_paisa`: elevated local surprisal heterogeneity under the human model.
 - small `burstiness_paisa`: smoother surprisal profile under the human model.
 

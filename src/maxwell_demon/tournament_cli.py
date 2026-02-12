@@ -25,7 +25,7 @@ def _parse_args() -> argparse.Namespace:
         "--compression",
         choices=list(SUPPORTED_COMPRESSION_ALGOS),
         default=None,
-        help="Compression algorithm (protocollo v2.0: lzma)",
+        help="Compression algorithm (protocol v2.0: lzma)",
     )
     parser.add_argument("--config", default=None, help="Path to TOML config")
     return parser.parse_args()
