@@ -3,6 +3,7 @@ from __future__ import annotations
 import gzip
 import importlib.util
 import io
+from copy import deepcopy
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -274,10 +275,21 @@ def _load_prepare_resources_module():
     return module
 
 
+def _legacy_default_config() -> dict[str, object]:
+    cfg = deepcopy(config.DEFAULT_CONFIG)
+    cfg["tokenization"] = {
+        "method": "legacy",
+        "encoding_name": "cl100k_base",
+        "include_punctuation": True,
+    }
+    return cfg
+
+
 def test_prepare_resources_reads_local_gzip_with_skip_download(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     prepare_resources = _load_prepare_resources_module()
+    monkeypatch.setattr(prepare_resources, "DEFAULT_CONFIG", _legacy_default_config())
     paisa_gz = tmp_path / "paisa_corpus.txt"
     with gzip.open(paisa_gz, "wt", encoding="utf-8") as handle:
         handle.write("parola parola umana")
@@ -334,6 +346,7 @@ def test_prepare_resources_downloads_synthetic_from_url(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     prepare_resources = _load_prepare_resources_module()
+    monkeypatch.setattr(prepare_resources, "DEFAULT_CONFIG", _legacy_default_config())
     payloads = {
         "https://example.test/paisa.gz": gzip.compress(b"parola umana parola"),
         "https://example.test/synthetic.gz": gzip.compress(b"sintetico token sintetico"),
@@ -372,6 +385,7 @@ def test_prepare_resources_only_human_build(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     prepare_resources = _load_prepare_resources_module()
+    monkeypatch.setattr(prepare_resources, "DEFAULT_CONFIG", _legacy_default_config())
     paisa_corpus = tmp_path / "paisa.txt"
     paisa_corpus.write_text("parola umana parola", encoding="utf-8")
 
