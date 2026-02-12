@@ -29,6 +29,86 @@ pip install -e '.[dev]'
 | `maxwell-demon-report` | Standalone Markdown report generation from a tournament CSV |
 | `maxwell-demon-phase` | Phase-space rendering (`delta_h`, `burstiness_paisa`) |
 
+## Quickstart (Operational)
+
+This is the shortest end-to-end path from raw files to interpretable outputs.
+
+### 0. Prepare a paired dataset
+
+Expected structure:
+
+```text
+data/<dataset>/
+  human/
+    001_human.txt
+  ai/
+    001_ai.txt
+```
+
+### 1. Build reference dictionaries
+
+```bash
+python scripts/prepare_resources.py \
+  --synthetic-input data/<dataset>/ai \
+  --config config.example.toml
+```
+
+Required outputs:
+
+- `data/reference/paisa_ref_dict.json`
+- `data/reference/synthetic_ref_dict.json`
+
+### 2. Run dual-reference tournament
+
+```bash
+maxwell-demon-tournament \
+  --human-input data/<dataset>/human \
+  --ai-input data/<dataset>/ai \
+  --config config.example.toml
+```
+
+Default outputs:
+
+- `results/<dataset>/data/final_delta.csv`
+- `results/<dataset>/data/final_delta.md`
+
+### 3. Render phase-space plot
+
+```bash
+maxwell-demon-phase \
+  --input results/<dataset>/data \
+  --config config.example.toml
+```
+
+Default output:
+
+- `results/<dataset>/plot/phase_delta_h_vs_burstiness_paisa.html`
+
+## Output Interpretation
+
+Core columns in tournament CSV:
+
+- `delta_h = H_human_ref - H_synthetic_ref`
+- `burstiness_paisa = Var(-log P_human_ref(token))`
+- `label` (if present): expected class (`human`/`ai`)
+
+Practical reading:
+
+- lower `delta_h` means lower surprisal under human reference relative to synthetic reference;
+- higher `delta_h` means lower surprisal under synthetic reference relative to human reference;
+- higher `burstiness_paisa` means stronger local surprisal fluctuation under the human model.
+- default decision rule (if a hard threshold is needed): `delta_h < 0 => human`.
+
+Do not interpret single windows in isolation; inspect distributions per file and per class.
+
+## Statistical Caveats
+
+- `delta_h = 0` is a useful default boundary but not universally optimal; calibrate on a validation set.
+- Window-level rows are not independent observations from the same document; avoid overconfident significance claims.
+- Domain and genre shift can change token distributions and degrade discrimination quality.
+- OOV/rare-token behavior depends on smoothing and tokenization settings.
+- Keep tokenization and smoothing identical between reference building and runtime analysis.
+
 ## Minimal Reproducible Run
 
 ### 1. Calibrate References

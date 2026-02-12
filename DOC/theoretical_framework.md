@@ -48,8 +48,9 @@ In exported outputs, \(\Delta H\) is represented by `delta_h`.
 
 ## 5. Interpretation Regime
 
-- \(\Delta H > 0\): the window is relatively more probable under the human reference.
-- \(\Delta H \approx 0\) or \(\Delta H < 0\): the window is relatively more compatible with synthetic-reference regularities.
+- lower \(\Delta H\): lower surprisal under the human reference relative to the synthetic reference.
+- higher \(\Delta H\): lower surprisal under the synthetic reference relative to the human reference.
+- \(\Delta H \approx 0\): comparable compatibility under both references.
 
 Robust inference should rely on empirical distributions of \(\Delta H\), not isolated windows.
 

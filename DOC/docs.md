@@ -219,7 +219,7 @@ Example:
 The report includes:
 
 - descriptive statistics on `delta_h` (`count`, `mean`, `median`, `std`, `min`, `max`), grouped by `label` if available;
-- rule-based classification metrics with decision rule `delta_h > 0 => human`;
+- rule-based classification metrics (current implementation in `maxwell-demon-report`: `delta_h < 0 => human`);
 - confusion matrix (`TP`, `TN`, `FP`, `FN`) when valid labels are present.
 
 ### 8.2 Standalone CLI
