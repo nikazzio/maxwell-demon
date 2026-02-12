@@ -13,7 +13,7 @@ Let:
 - \(\mathcal{R}_H\): human reference distribution (PAISA-derived)
 - \(\mathcal{R}_S\): synthetic reference distribution (AI-derived)
 
-Both references are estimated with identical preprocessing and smoothing to preserve comparability.
+Both references are estimated with identical preprocessing, tokenization policy, and smoothing to preserve comparability.
 
 ## 3. Tournament Mechanics
 

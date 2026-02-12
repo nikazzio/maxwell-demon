@@ -8,6 +8,7 @@ import lzma
 import re
 import zlib
 from collections.abc import Mapping
+from typing import Any
 
 from .metrics import (
     calculate_shannon_entropy,
@@ -17,13 +18,70 @@ from .metrics import (
 
 TOKEN_CLEAN_RE = re.compile(r"[^\w\s]+", re.UNICODE)
 SUPPORTED_COMPRESSION_ALGOS = ("lzma", "gzip", "bz2", "zlib")
+DEFAULT_TOKENIZATION: dict[str, Any] = {
+    "method": "legacy",
+    "encoding_name": "cl100k_base",
+    "include_punctuation": True,
+}
 
 
-def preprocess_text(text: str) -> list[str]:
-    """Lowercase, remove basic punctuation, and split into tokens."""
+def _legacy_preprocess_text(text: str) -> list[str]:
+    """Legacy tokenizer: lowercase, strip punctuation, split on whitespace."""
     text = text.lower()
     text = TOKEN_CLEAN_RE.sub(" ", text)
     return text.split()
+
+
+def _resolve_tokenization_config(tokenization: Mapping[str, object] | None) -> dict[str, Any]:
+    if tokenization is None:
+        return DEFAULT_TOKENIZATION.copy()
+    return {
+        "method": tokenization.get("method", DEFAULT_TOKENIZATION["method"]),
+        "encoding_name": tokenization.get(
+            "encoding_name",
+            DEFAULT_TOKENIZATION["encoding_name"],
+        ),
+        "include_punctuation": tokenization.get(
+            "include_punctuation",
+            DEFAULT_TOKENIZATION["include_punctuation"],
+        ),
+    }
+
+
+def _tiktoken_preprocess_text(
+    text: str,
+    *,
+    encoding_name: str,
+    include_punctuation: bool,
+) -> list[str]:
+    try:
+        import tiktoken
+    except ModuleNotFoundError:
+        # Compatibility fallback for environments where optional runtime deps are missing.
+        return _legacy_preprocess_text(text)
+
+    prepared_text = text if include_punctuation else TOKEN_CLEAN_RE.sub(" ", text)
+    encoding = tiktoken.get_encoding(encoding_name)
+    token_ids = encoding.encode(prepared_text)
+    return [
+        encoding.decode_single_token_bytes(token_id).decode("utf-8", errors="replace")
+        for token_id in token_ids
+    ]
+
+
+def preprocess_text(text: str, tokenization: Mapping[str, object] | None = None) -> list[str]:
+    """Tokenize text according to configured tokenization method."""
+    tokenization_cfg = _resolve_tokenization_config(tokenization)
+    method = str(tokenization_cfg["method"]).lower()
+    if method == "legacy":
+        return _legacy_preprocess_text(text)
+    if method == "tiktoken":
+        return _tiktoken_preprocess_text(
+            text,
+            encoding_name=str(tokenization_cfg["encoding_name"]),
+            include_punctuation=bool(tokenization_cfg["include_punctuation"]),
+        )
+    raise ValueError("tokenization method must be one of: legacy, tiktoken")
 
 
 def _compression_ratio(window_text: str, algorithm: str = "lzma") -> float:

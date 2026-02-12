@@ -112,6 +112,7 @@ def main() -> None:
         step=step,
         log_base=log_base,
         compression=compression,
+        tokenization=cfg["tokenization"],
         output_path=output,
     )
     print(f"Saved {len(frame)} rows to {output}")

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from pathlib import Path
 
 import pandas as pd
@@ -54,6 +55,7 @@ def run_tournament(
     log_base: float,
     output_path: str | Path = "tournament_results.csv",
     compression: str = "lzma",
+    tokenization: Mapping[str, object] | None = None,
 ) -> pd.DataFrame:
     """Run cross-reference tournament and persist deterministic delta output."""
     ref_paisa = load_ref_dict(str(paisa_ref_path))
@@ -68,7 +70,7 @@ def run_tournament(
     for label, files in grouped_files.items():
         for file_path in files:
             text = file_path.read_text(encoding="utf-8", errors="ignore")
-            tokens = preprocess_text(text)
+            tokens = preprocess_text(text, tokenization=tokenization)
             by_ref = analyze_tokens_batch(
                 tokens,
                 mode="diff",

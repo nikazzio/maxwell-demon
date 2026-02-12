@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import gzip
 import shutil
+from collections.abc import Mapping
 from pathlib import Path
 from urllib.request import urlretrieve
 
@@ -72,11 +73,15 @@ def _collect_text_files(path: Path) -> list[Path]:
     raise FileNotFoundError(f"Path not found: {path}")
 
 
-def _load_tokens_from_text_files(files: list[Path]) -> list[str]:
+def _load_tokens_from_text_files(
+    files: list[Path],
+    *,
+    tokenization_cfg: Mapping[str, object],
+) -> list[str]:
     tokens: list[str] = []
     for file_path in files:
         text = file_path.read_text(encoding="utf-8", errors="ignore")
-        tokens.extend(preprocess_text(text))
+        tokens.extend(preprocess_text(text, tokenization=tokenization_cfg))
     return tokens
 
 
@@ -107,12 +112,17 @@ def _read_text_maybe_gzip(path: Path) -> str:
     return path.read_text(encoding="utf-8", errors="ignore")
 
 
-def _load_synthetic_tokens(args: argparse.Namespace, reference_cfg: dict[str, object]) -> list[str]:
+def _load_synthetic_tokens(
+    args: argparse.Namespace,
+    reference_cfg: dict[str, object],
+    *,
+    tokenization_cfg: Mapping[str, object],
+) -> list[str]:
     if args.synthetic_input:
         synthetic_files = _collect_text_files(Path(args.synthetic_input))
         if not synthetic_files:
             raise SystemExit("No synthetic .txt files found")
-        return _load_tokens_from_text_files(synthetic_files)
+        return _load_tokens_from_text_files(synthetic_files, tokenization_cfg=tokenization_cfg)
 
     synthetic_url = args.synthetic_url or reference_cfg["synthetic_url"]
     synthetic_corpus_out = args.synthetic_corpus_out or reference_cfg["synthetic_corpus_path"]
@@ -122,7 +132,7 @@ def _load_synthetic_tokens(args: argparse.Namespace, reference_cfg: dict[str, ob
             raise SystemExit(f"Missing synthetic corpus file: {synthetic_corpus_path}")
     else:
         synthetic_corpus_path = _download_corpus(str(synthetic_url), synthetic_corpus_path)
-    return preprocess_text(_read_text_maybe_gzip(synthetic_corpus_path))
+    return preprocess_text(_read_text_maybe_gzip(synthetic_corpus_path), tokenization=tokenization_cfg)
 
 
 def main() -> None:
@@ -130,6 +140,9 @@ def main() -> None:
 
     cfg = DEFAULT_CONFIG if args.config is None else load_config(args.config)
     reference_cfg = cfg["reference"]
+    tokenization_cfg = cfg["tokenization"]
+    if not isinstance(tokenization_cfg, Mapping):
+        raise SystemExit("Invalid config section: tokenization")
     paisa_url = args.paisa_url or reference_cfg["paisa_url"]
     paisa_corpus_out = args.paisa_corpus_out or reference_cfg["paisa_corpus_path"]
     human_dict_out = args.human_dict_out or reference_cfg["paisa_path"]
@@ -149,8 +162,15 @@ def main() -> None:
     else:
         paisa_corpus_path = _download_corpus(str(paisa_url), paisa_corpus_path)
 
-    paisa_tokens = preprocess_text(_read_text_maybe_gzip(paisa_corpus_path))
-    synthetic_tokens = _load_synthetic_tokens(args, reference_cfg)
+    paisa_tokens = preprocess_text(
+        _read_text_maybe_gzip(paisa_corpus_path),
+        tokenization=tokenization_cfg,
+    )
+    synthetic_tokens = _load_synthetic_tokens(
+        args,
+        reference_cfg,
+        tokenization_cfg=tokenization_cfg,
+    )
 
     human_dict = build_ref_dict_from_tokens(paisa_tokens, smoothing_k=smoothing_k)
     synthetic_dict = build_ref_dict_from_tokens(synthetic_tokens, smoothing_k=smoothing_k)

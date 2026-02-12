@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Mapping
 from pathlib import Path
 
 from .analyzer import SUPPORTED_COMPRESSION_ALGOS
@@ -40,6 +41,9 @@ def main() -> None:
     compression = (
         args.compression if args.compression is not None else cfg["compression"]["algorithm"]
     )
+    tokenization_cfg = cfg["tokenization"]
+    if not isinstance(tokenization_cfg, Mapping):
+        raise SystemExit("Invalid config section: tokenization")
 
     if args.output is None:
         dataset = infer_dataset_name([args.human_input, args.ai_input])
@@ -57,6 +61,7 @@ def main() -> None:
         step=step,
         log_base=log_base,
         compression=compression,
+        tokenization=tokenization_cfg,
         output_path=output,
     )
     print(f"Saved {len(frame)} rows to {output}")

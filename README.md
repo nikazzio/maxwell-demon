@@ -87,10 +87,20 @@ Top-level sections:
 
 - `[analysis]`
 - `[compression]`
+- `[tokenization]`
 - `[reference]`
 - `[output]`
 - `[openai]`
 - `[shadow_dataset]`
+
+Tokenization defaults:
+
+- `method = "tiktoken"` (recommended)
+- `encoding_name = "cl100k_base"`
+- `include_punctuation = true`
+
+Backward-compatible mode is available with `method = "legacy"` (lowercase + regex punctuation stripping).
+For statistical consistency, reference-dictionary construction and runtime analysis both use the same tokenization configuration.
 
 Output paths are dataset-aware through templating:
 

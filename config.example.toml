@@ -6,6 +6,11 @@ log_base = 2.0
 [compression]
 algorithm = "lzma"
 
+[tokenization]
+method = "tiktoken"
+encoding_name = "cl100k_base"
+include_punctuation = true
+
 [reference]
 paisa_path = "data/reference/paisa_ref_dict.json"
 synthetic_path = "data/reference/synthetic_ref_dict.json"

@@ -53,6 +53,9 @@ paisa_path = "paisa.json"
     assert isinstance(loaded["reference"]["synthetic_url"], str)
     assert loaded["reference"]["synthetic_corpus_path"] == "data/reference/synthetic_corpus.txt"
     assert loaded["reference"]["smoothing_k"] == 1.0
+    assert loaded["tokenization"]["method"] == "tiktoken"
+    assert loaded["tokenization"]["encoding_name"] == "cl100k_base"
+    assert loaded["tokenization"]["include_punctuation"] is True
     assert loaded["output"]["data_dir"] == "results/{dataset}/data"
     assert loaded["output"]["plot_dir"] == "results/{dataset}/plot"
 
@@ -79,6 +82,14 @@ def test_load_config_rejects_negative_reference_smoothing(tmp_path: Path) -> Non
     cfg.write_text("[reference]\nsmoothing_k = -0.1\n", encoding="utf-8")
 
     with pytest.raises(ValueError, match="reference.smoothing_k"):
+        config.load_config(cfg)
+
+
+def test_load_config_rejects_unknown_tokenization_method(tmp_path: Path) -> None:
+    cfg = tmp_path / "bad_tokenization.toml"
+    cfg.write_text("[tokenization]\nmethod = 'unknown'\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="tokenization.method"):
         config.load_config(cfg)
 
 
@@ -115,6 +126,12 @@ def test_analyzer_compression_and_batch_diff() -> None:
     assert "paisa" in by_ref
     assert by_ref["paisa"]
     assert "mean_entropy" in by_ref["paisa"][0]
+
+
+def test_preprocess_text_legacy_mode_preserves_current_behavior() -> None:
+    text = "Hello, WORLD! Ciao?"
+    tokens = analyzer.preprocess_text(text, tokenization={"method": "legacy"})
+    assert tokens == ["hello", "world", "ciao"]
 
 
 def test_collect_input_files_file_dir_and_missing(tmp_path: Path) -> None:

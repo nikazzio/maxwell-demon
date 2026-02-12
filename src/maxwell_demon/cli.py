@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Mapping
 from pathlib import Path
 
 import pandas as pd
@@ -111,9 +112,13 @@ def run_single_analysis(
     rows: list[dict[str, object]] = []
     out_dir = Path(output_dir) if output_dir else None
 
+    tokenization_cfg = cfg["tokenization"]
+    if not isinstance(tokenization_cfg, Mapping):
+        raise SystemExit("Invalid config section: tokenization")
+
     for file_path in files:
         text = file_path.read_text(encoding="utf-8", errors="ignore")
-        tokens = preprocess_text(text)
+        tokens = preprocess_text(text, tokenization=tokenization_cfg)
         window_results = analyze_tokens(
             tokens=tokens,
             mode=mode,

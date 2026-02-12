@@ -18,6 +18,11 @@ DEFAULT_CONFIG: dict[str, object] = {
     "compression": {
         "algorithm": "lzma",
     },
+    "tokenization": {
+        "method": "tiktoken",
+        "encoding_name": "cl100k_base",
+        "include_punctuation": True,
+    },
     "reference": {
         "paisa_path": "data/reference/paisa_ref_dict.json",
         "synthetic_path": "data/reference/synthetic_ref_dict.json",
@@ -59,6 +64,7 @@ def load_config(path: str | Path) -> dict[str, object]:
     merged: dict[str, object] = {
         "analysis": {**DEFAULT_CONFIG["analysis"], **data.get("analysis", {})},
         "compression": {**DEFAULT_CONFIG["compression"], **data.get("compression", {})},
+        "tokenization": {**DEFAULT_CONFIG["tokenization"], **data.get("tokenization", {})},
         "reference": {**DEFAULT_CONFIG["reference"], **data.get("reference", {})},
         "output": {**DEFAULT_CONFIG["output"], **data.get("output", {})},
         "openai": {**DEFAULT_CONFIG["openai"], **data.get("openai", {})},
@@ -84,6 +90,17 @@ def _validate_config(cfg: dict[str, object]) -> None:
     compression = cfg["compression"]["algorithm"]
     if compression not in {"lzma", "gzip", "bz2", "zlib"}:
         raise ValueError("compression.algorithm must be one of: lzma, gzip, bz2, zlib")
+
+    tokenization = cfg["tokenization"]
+    method = tokenization["method"]
+    encoding_name = tokenization["encoding_name"]
+    include_punctuation = tokenization["include_punctuation"]
+    if method not in {"legacy", "tiktoken"}:
+        raise ValueError("tokenization.method must be one of: legacy, tiktoken")
+    if not isinstance(encoding_name, str) or not encoding_name.strip():
+        raise ValueError("tokenization.encoding_name must be a non-empty string")
+    if not isinstance(include_punctuation, bool):
+        raise ValueError("tokenization.include_punctuation must be a boolean")
 
     reference = cfg["reference"]
     paisa_path = reference["paisa_path"]

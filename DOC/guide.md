@@ -44,6 +44,12 @@ Any pairing inconsistency invalidates downstream comparative analysis.
 
 Objective: estimate two token-probability dictionaries under identical preprocessing and smoothing assumptions.
 
+Tokenization constraint:
+
+- calibration and inference must share the same tokenization policy from `[tokenization]` in `config.toml`;
+- default protocol uses `tiktoken` (`cl100k_base`, punctuation included);
+- `legacy` mode is available for backward compatibility experiments.
+
 Local synthetic source:
 
 ```bash

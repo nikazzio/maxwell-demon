@@ -8,12 +8,26 @@ Reference template: `config.example.toml`.
 |---|---|
 | `[analysis]` | Sliding-window inference parameters (`window`, `step`, `log_base`) |
 | `[compression]` | Compression backend selection (`algorithm`) |
+| `[tokenization]` | Tokenization strategy and encoder settings |
 | `[reference]` | Reference-corpus sources and dictionary paths |
 | `[output]` | Dataset-templated output directories (`data_dir`, `plot_dir`) |
 | `[openai]` | API integration settings |
 | `[shadow_dataset]` | Synthetic generation defaults |
 
-### 1.1 `[reference]` semantics
+### 1.1 `[tokenization]` semantics
+
+| Key | Definition |
+|---|---|
+| `method` | Tokenization backend. Supported values: `tiktoken`, `legacy`. |
+| `encoding_name` | Encoder name used by `tiktoken` mode (default: `cl100k_base`). |
+| `include_punctuation` | If `true`, punctuation is retained in tokenization. In `legacy` mode this flag is ignored. |
+
+Notes:
+
+- `tiktoken` mode returns token strings decoded from token ids, preserving `list[str]` compatibility with entropy metrics.
+- `legacy` mode preserves historical behavior (lowercasing + regex punctuation removal + whitespace split).
+
+### 1.2 `[reference]` semantics
 
 | Key | Definition |
 |---|---|
@@ -25,7 +39,7 @@ Reference template: `config.example.toml`.
 | `synthetic_corpus_path` | Local cache path for synthetic text |
 | `smoothing_k` | Global add-k smoothing coefficient applied symmetrically to both dictionaries (recommended: `1.0`) |
 
-### 1.2 `[output]` semantics
+### 1.3 `[output]` semantics
 
 | Key | Definition |
 |---|---|
@@ -70,6 +84,11 @@ python scripts/prepare_resources.py \
 - `data/reference/paisa_ref_dict.json`
 - `data/reference/synthetic_ref_dict.json`
 
+Tokenization coherence guarantee:
+
+- `prepare_resources.py` uses the same `[tokenization]` configuration used later by analysis CLIs.
+- This prevents dictionary/analysis token-space mismatch.
+
 ## 4. `maxwell-demon-tournament`
 
 Reference command:
@@ -93,6 +112,10 @@ maxwell-demon-tournament \
 | `--step` | optional | Overrides `analysis.step`. |
 | `--log-base` | optional | Overrides `analysis.log_base`. |
 | `--compression` | optional | Overrides compression backend. |
+
+Tokenization policy:
+
+- No dedicated CLI flag is required; tournament tokenization is resolved from `[tokenization]` in TOML.
 
 ### 4.2 Output artifact
 
@@ -159,6 +182,10 @@ This interface provides local metric inspection (`raw`/`diff`) and does not subs
 | `--log-base` | optional | Logarithm base for entropy/surprisal. |
 | `--compression` | optional | Compression backend. |
 | `--config` | optional | Path to TOML configuration. |
+
+Tokenization policy:
+
+- Single analysis uses `[tokenization]` from the loaded config.
 
 ## 7. Compression Policy
 
