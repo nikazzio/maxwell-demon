@@ -22,6 +22,7 @@ DEFAULT_CONFIG: dict[str, object] = {
         "method": "tiktoken",
         "encoding_name": "cl100k_base",
         "include_punctuation": True,
+        "fallback_to_legacy_if_tiktoken_missing": True,
     },
     "reference": {
         "paisa_path": "data/reference/paisa_ref_dict.json",
@@ -95,12 +96,17 @@ def _validate_config(cfg: dict[str, object]) -> None:
     method = tokenization["method"]
     encoding_name = tokenization["encoding_name"]
     include_punctuation = tokenization["include_punctuation"]
+    fallback_to_legacy = tokenization["fallback_to_legacy_if_tiktoken_missing"]
     if method not in {"legacy", "tiktoken"}:
         raise ValueError("tokenization.method must be one of: legacy, tiktoken")
     if not isinstance(encoding_name, str) or not encoding_name.strip():
         raise ValueError("tokenization.encoding_name must be a non-empty string")
     if not isinstance(include_punctuation, bool):
         raise ValueError("tokenization.include_punctuation must be a boolean")
+    if not isinstance(fallback_to_legacy, bool):
+        raise ValueError(
+            "tokenization.fallback_to_legacy_if_tiktoken_missing must be a boolean"
+        )
 
     reference = cfg["reference"]
     paisa_path = reference["paisa_path"]

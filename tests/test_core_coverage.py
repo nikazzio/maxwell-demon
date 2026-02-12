@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import builtins
 import gzip
 import importlib.util
 import io
@@ -59,6 +60,7 @@ paisa_path = "paisa.json"
     assert loaded["tokenization"]["method"] == "tiktoken"
     assert loaded["tokenization"]["encoding_name"] == "cl100k_base"
     assert loaded["tokenization"]["include_punctuation"] is True
+    assert loaded["tokenization"]["fallback_to_legacy_if_tiktoken_missing"] is True
     assert loaded["output"]["data_dir"] == "results/{dataset}/data"
     assert loaded["output"]["plot_dir"] == "results/{dataset}/plot"
 
@@ -93,6 +95,17 @@ def test_load_config_rejects_unknown_tokenization_method(tmp_path: Path) -> None
     cfg.write_text("[tokenization]\nmethod = 'unknown'\n", encoding="utf-8")
 
     with pytest.raises(ValueError, match="tokenization.method"):
+        config.load_config(cfg)
+
+
+def test_load_config_rejects_non_boolean_tiktoken_fallback(tmp_path: Path) -> None:
+    cfg = tmp_path / "bad_tiktoken_fallback.toml"
+    cfg.write_text(
+        "[tokenization]\nfallback_to_legacy_if_tiktoken_missing = 'yes'\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="tokenization.fallback_to_legacy_if_tiktoken_missing"):
         config.load_config(cfg)
 
 
@@ -135,6 +148,59 @@ def test_preprocess_text_legacy_mode_preserves_current_behavior() -> None:
     text = "Hello, WORLD! Ciao?"
     tokens = analyzer.preprocess_text(text, tokenization={"method": "legacy"})
     assert tokens == ["hello", "world", "ciao"]
+
+
+def test_default_tokenization_config_uses_tiktoken() -> None:
+    tokenization_cfg = analyzer._resolve_tokenization_config(None)
+    assert tokenization_cfg["method"] == "tiktoken"
+    assert tokenization_cfg["fallback_to_legacy_if_tiktoken_missing"] is True
+
+
+def test_tiktoken_missing_falls_back_to_legacy_with_warning(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(analyzer, "_TIKTOKEN_FALLBACK_WARNED", False)
+    original_import = builtins.__import__
+
+    def fake_import(name, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003
+        if name == "tiktoken":
+            raise ModuleNotFoundError("No module named 'tiktoken'")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+
+    with pytest.warns(RuntimeWarning, match="Falling back to legacy tokenizer"):
+        tokens = analyzer.preprocess_text(
+            "Hello, WORLD!",
+            tokenization={
+                "method": "tiktoken",
+                "fallback_to_legacy_if_tiktoken_missing": True,
+            },
+        )
+    assert tokens == ["hello", "world"]
+
+
+def test_tiktoken_missing_raises_when_fallback_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(analyzer, "_TIKTOKEN_FALLBACK_WARNED", False)
+    original_import = builtins.__import__
+
+    def fake_import(name, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003
+        if name == "tiktoken":
+            raise ModuleNotFoundError("No module named 'tiktoken'")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+
+    with pytest.raises(ModuleNotFoundError, match="dependency 'tiktoken' is missing"):
+        analyzer.preprocess_text(
+            "Hello, WORLD!",
+            tokenization={
+                "method": "tiktoken",
+                "fallback_to_legacy_if_tiktoken_missing": False,
+            },
+        )
 
 
 def test_collect_input_files_file_dir_and_missing(tmp_path: Path) -> None:
@@ -281,6 +347,7 @@ def _legacy_default_config() -> dict[str, object]:
         "method": "legacy",
         "encoding_name": "cl100k_base",
         "include_punctuation": True,
+        "fallback_to_legacy_if_tiktoken_missing": True,
     }
     return cfg
 

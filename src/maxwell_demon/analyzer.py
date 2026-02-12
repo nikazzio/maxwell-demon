@@ -6,6 +6,7 @@ import bz2
 import gzip
 import lzma
 import re
+import warnings
 import zlib
 from collections.abc import Mapping
 from typing import Any
@@ -19,10 +20,12 @@ from .metrics import (
 TOKEN_CLEAN_RE = re.compile(r"[^\w\s]+", re.UNICODE)
 SUPPORTED_COMPRESSION_ALGOS = ("lzma", "gzip", "bz2", "zlib")
 DEFAULT_TOKENIZATION: dict[str, Any] = {
-    "method": "legacy",
+    "method": "tiktoken",
     "encoding_name": "cl100k_base",
     "include_punctuation": True,
+    "fallback_to_legacy_if_tiktoken_missing": True,
 }
+_TIKTOKEN_FALLBACK_WARNED = False
 
 
 def _legacy_preprocess_text(text: str) -> list[str]:
@@ -45,6 +48,10 @@ def _resolve_tokenization_config(tokenization: Mapping[str, object] | None) -> d
             "include_punctuation",
             DEFAULT_TOKENIZATION["include_punctuation"],
         ),
+        "fallback_to_legacy_if_tiktoken_missing": tokenization.get(
+            "fallback_to_legacy_if_tiktoken_missing",
+            DEFAULT_TOKENIZATION["fallback_to_legacy_if_tiktoken_missing"],
+        ),
     }
 
 
@@ -53,11 +60,25 @@ def _tiktoken_preprocess_text(
     *,
     encoding_name: str,
     include_punctuation: bool,
+    fallback_to_legacy_if_missing: bool,
 ) -> list[str]:
+    global _TIKTOKEN_FALLBACK_WARNED
     try:
         import tiktoken
-    except ModuleNotFoundError:
-        # Compatibility fallback for environments where optional runtime deps are missing.
+    except ModuleNotFoundError as exc:
+        if not fallback_to_legacy_if_missing:
+            raise ModuleNotFoundError(
+                "Tokenization method is 'tiktoken' but dependency 'tiktoken' is missing. "
+                "Install project dependencies or set tokenization.method='legacy'."
+            ) from exc
+        if not _TIKTOKEN_FALLBACK_WARNED:
+            warnings.warn(
+                "Tokenization method is 'tiktoken' but dependency 'tiktoken' is missing. "
+                "Falling back to legacy tokenizer.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+            _TIKTOKEN_FALLBACK_WARNED = True
         return _legacy_preprocess_text(text)
 
     prepared_text = text if include_punctuation else TOKEN_CLEAN_RE.sub(" ", text)
@@ -80,6 +101,9 @@ def preprocess_text(text: str, tokenization: Mapping[str, object] | None = None)
             text,
             encoding_name=str(tokenization_cfg["encoding_name"]),
             include_punctuation=bool(tokenization_cfg["include_punctuation"]),
+            fallback_to_legacy_if_missing=bool(
+                tokenization_cfg["fallback_to_legacy_if_tiktoken_missing"]
+            ),
         )
     raise ValueError("tokenization method must be one of: legacy, tiktoken")
 

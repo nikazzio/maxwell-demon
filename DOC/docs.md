@@ -21,11 +21,14 @@ Reference template: `config.example.toml`.
 | `method` | Tokenization backend. Supported values: `tiktoken`, `legacy`. |
 | `encoding_name` | Encoder name used by `tiktoken` mode (default: `cl100k_base`). |
 | `include_punctuation` | If `true`, punctuation is retained in tokenization. In `legacy` mode this flag is ignored. |
+| `fallback_to_legacy_if_tiktoken_missing` | If `true`, missing `tiktoken` dependency triggers automatic legacy fallback with warning; if `false`, execution fails. |
 
 Notes:
 
 - `tiktoken` mode returns token strings decoded from token ids, preserving `list[str]` compatibility with entropy metrics.
 - `legacy` mode preserves historical behavior (lowercasing + regex punctuation removal + whitespace split).
+- Runtime/config default is `method = "tiktoken"`.
+- Fallback behavior is explicit and configurable via `fallback_to_legacy_if_tiktoken_missing`.
 
 ### 1.2 `[reference]` semantics
 
