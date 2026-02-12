@@ -1,6 +1,6 @@
 [project]
 name = "maxwell-demon"
-version = "1.3.0"
+version = "1.3.1"
 description = "CLI + library for entropy-based text analysis."
 readme = "README.md"
 requires-python = ">=3.10"
