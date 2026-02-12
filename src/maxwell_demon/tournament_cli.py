@@ -9,6 +9,7 @@ from pathlib import Path
 from .analyzer import SUPPORTED_COMPRESSION_ALGOS
 from .config import DEFAULT_CONFIG, load_config
 from .output_paths import infer_dataset_name, resolve_output_template, tournament_output_filename
+from .tools.report_stats import save_report
 from .tournament import run_tournament
 
 
@@ -65,6 +66,13 @@ def main() -> None:
         output_path=output,
     )
     print(f"Saved {len(frame)} rows to {output}")
+
+    report_path = Path(output).with_suffix(".md")
+    try:
+        save_report(frame, report_path)
+        print(f"Saved report to {report_path}")
+    except Exception as exc:  # pragma: no cover - best effort reporting
+        print(f"Warning: failed to generate report at {report_path}: {exc}")
 
 
 if __name__ == "__main__":
