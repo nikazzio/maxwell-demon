@@ -120,6 +120,7 @@ Tokenization policy:
 ### 4.2 Output artifact
 
 - `results/<dataset>/data/final_delta.csv`
+- `results/<dataset>/data/final_delta.md` (auto-generated statistical report)
 
 ### 4.3 Output schema
 
@@ -192,3 +193,29 @@ Tokenization policy:
 Protocol default: **LZMA**.
 
 `gzip`, `bz2`, and `zlib` are maintained for controlled comparative analyses and reproducibility studies.
+
+## 8. Automatic and Standalone Reporting
+
+`maxwell-demon-tournament` generates a Markdown report immediately after CSV export.
+The report path is derived from the CSV output path by replacing the extension with `.md`.
+
+Example:
+
+- CSV: `results/dataset_it_01/data/final_delta.csv`
+- report: `results/dataset_it_01/data/final_delta.md`
+
+### 8.1 Report content
+
+The report includes:
+
+- descriptive statistics on `delta_h` (`count`, `mean`, `median`, `std`, `min`, `max`), grouped by `label` if available;
+- rule-based classification metrics with decision rule `delta_h > 0 => human`;
+- confusion matrix (`TP`, `TN`, `FP`, `FN`) when valid labels are present.
+
+### 8.2 Standalone CLI
+
+The same report can be generated manually from any existing CSV:
+
+```bash
+maxwell-demon-report --input <tournament.csv> --output <report.md>
+```

@@ -87,6 +87,7 @@ maxwell-demon-tournament \
 Default artifact:
 
 - `results/dataset_it_01/data/final_delta.csv`
+- `results/dataset_it_01/data/final_delta.md` (automatic report generated after CSV export)
 
 ## 5. Phase-Space Analysis Stage
 
@@ -101,6 +102,16 @@ maxwell-demon-phase \
 Default artifact:
 
 - `results/dataset_it_01/plot/phase_delta_h_vs_burstiness_paisa.html`
+
+## 5.1 Standalone Reporting (optional)
+
+To regenerate a report from an existing CSV without rerunning the tournament:
+
+```bash
+maxwell-demon-report \
+  --input results/dataset_it_01/data/final_delta.csv \
+  --output results/dataset_it_01/data/final_delta.md
+```
 
 ## 6. Interpretation Heuristics
 
@@ -117,7 +128,7 @@ Inference should be distributional (across windows and files), not pointwise.
 |---|---|---|
 | validation | `scripts_dataset.py check` | paired and balanced dataset |
 | calibration | `prepare_resources.py` | both reference dictionaries persisted |
-| inference | `maxwell-demon-tournament` | `final_delta.csv` generated |
+| inference | `maxwell-demon-tournament` | `final_delta.csv` + `final_delta.md` generated |
 | visualization | `maxwell-demon-phase` | phase-space map rendered |
 
 ## 8. Practical Notes

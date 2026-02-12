@@ -26,6 +26,7 @@ pip install -e '.[dev]'
 |---|---|
 | `python scripts/prepare_resources.py` | Reference calibration (human + synthetic dictionaries) |
 | `maxwell-demon-tournament` | Dual-reference scoring and delta extraction |
+| `maxwell-demon-report` | Standalone Markdown report generation from a tournament CSV |
 | `maxwell-demon-phase` | Phase-space rendering (`delta_h`, `burstiness_paisa`) |
 
 ## Minimal Reproducible Run
@@ -60,6 +61,7 @@ maxwell-demon-tournament \
 Default artifact:
 
 - `results/dataset_it_01/data/final_delta.csv`
+- `results/dataset_it_01/data/final_delta.md` (auto-generated report)
 
 ### 3. Inspect Phase Space
 
@@ -112,6 +114,7 @@ Output paths are dataset-aware through templating:
 - `maxwell-demon`: single-run diagnostics (`raw`, `diff`)
 - `maxwell-demon-plot`: static PNG trajectory plot
 - `maxwell-demon-plot-html`: interactive HTML trajectory plot
+- `maxwell-demon-report`: standalone Markdown report tool (`--input`, `--output`)
 - `scripts/run_analysis.py`: wrapper for single/tournament execution modes
 
 ## Verification
