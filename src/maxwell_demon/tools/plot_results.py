@@ -27,6 +27,12 @@ def _parse_args() -> argparse.Namespace:
         default="label",
         help="Column for color grouping (e.g., label, mode, filename)",
     )
+    parser.add_argument(
+        "--max-legend-items",
+        type=int,
+        default=20,
+        help="Hide legend when hue has more unique values than this threshold",
+    )
     return parser.parse_args()
 
 
@@ -63,16 +69,29 @@ def main() -> None:
     if args.hue not in df.columns:
         raise SystemExit(f"Hue column '{args.hue}' not found in CSV columns")
 
+    unique_hue_items = df[args.hue].dropna().nunique()
+    show_legend = unique_hue_items <= args.max_legend_items
+    if not show_legend:
+        print(
+            f"Hiding legend: '{args.hue}' has {unique_hue_items} unique values "
+            f"(threshold={args.max_legend_items})"
+        )
+
     sns.set_theme(style="whitegrid")
     plt.figure(figsize=(12, 6))
-    sns.lineplot(
+    ax = sns.lineplot(
         data=df,
         x="window_id",
         y=args.metric,
         hue=args.hue,
         estimator=None,
         alpha=0.8,
+        legend=show_legend,
     )
+    if not show_legend:
+        legend = ax.get_legend()
+        if legend is not None:
+            legend.remove()
     plt.title(f"{args.metric} over windows")
     plt.tight_layout()
     plt.savefig(output_path, dpi=150)

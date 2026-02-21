@@ -36,3 +36,15 @@ incipit_chars = 100
 max_output_tokens = 1800
 system_prompt = "Agisci come un saggista esperto. Scrivi saggi lunghi, complessi, senza elenchi puntati, ricchi di subordinate e vocabolario vario."
 user_prompt_template = "Scrivi un saggio originale di circa 1000 parole basato su questo titolo: '{TITLE}'. Usa questo incipit come ispirazione per il tono: '{INCIPIT}'."
+
+[standard]
+compressions = ["lzma", "gzip"]
+
+[standard.human_only]
+aggregate_metrics = ["mean_entropy", "entropy_variance", "compression_ratio", "unique_ratio"]
+aggregate_stats = ["mean", "median", "std", "min", "max", "p10", "p25", "p75", "p90"]
+group_by = ["filename", "label", "mode", "reference", "compression"]
+
+[standard.plots]
+enabled = true
+density_threshold = 2000

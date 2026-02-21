@@ -55,6 +55,23 @@ DEFAULT_CONFIG: dict[str, object] = {
             "'{TITLE}'. Usa questo incipit come ispirazione per il tono: '{INCIPIT}'."
         ),
     },
+    "standard": {
+        "compressions": ["lzma", "gzip"],
+        "human_only": {
+            "aggregate_metrics": [
+                "mean_entropy",
+                "entropy_variance",
+                "compression_ratio",
+                "unique_ratio",
+            ],
+            "aggregate_stats": ["mean", "median", "std", "min", "max", "p10", "p25", "p75", "p90"],
+            "group_by": ["filename", "label", "mode", "reference", "compression"],
+        },
+        "plots": {
+            "enabled": True,
+            "density_threshold": 2000,
+        },
+    },
 }
 
 
@@ -70,7 +87,21 @@ def load_config(path: str | Path) -> dict[str, object]:
         "output": {**DEFAULT_CONFIG["output"], **data.get("output", {})},
         "openai": {**DEFAULT_CONFIG["openai"], **data.get("openai", {})},
         "shadow_dataset": {**DEFAULT_CONFIG["shadow_dataset"], **data.get("shadow_dataset", {})},
+        "standard": {
+            **DEFAULT_CONFIG["standard"],
+            **data.get("standard", {}),
+        },
     }
+    if isinstance(merged["standard"], dict):
+        raw_standard = merged["standard"]
+        default_standard = DEFAULT_CONFIG["standard"]
+        if isinstance(raw_standard.get("human_only"), dict):
+            raw_standard["human_only"] = {
+                **default_standard["human_only"],
+                **raw_standard["human_only"],
+            }
+        if isinstance(raw_standard.get("plots"), dict):
+            raw_standard["plots"] = {**default_standard["plots"], **raw_standard["plots"]}
     _validate_config(merged)
     return merged
 
@@ -162,3 +193,28 @@ def _validate_config(cfg: dict[str, object]) -> None:
         or not shadow_cfg["user_prompt_template"].strip()
     ):
         raise ValueError("shadow_dataset.user_prompt_template must be a non-empty string")
+
+    standard_cfg = cfg["standard"]
+    if not isinstance(standard_cfg, dict):
+        raise ValueError("standard must be a TOML table")
+    compressions = standard_cfg["compressions"]
+    if not isinstance(compressions, list) or not compressions:
+        raise ValueError("standard.compressions must be a non-empty list")
+    if any(not isinstance(item, str) or item not in {"lzma", "gzip", "bz2", "zlib"} for item in compressions):
+        raise ValueError("standard.compressions items must be among: lzma, gzip, bz2, zlib")
+
+    human_only_cfg = standard_cfg["human_only"]
+    if not isinstance(human_only_cfg, dict):
+        raise ValueError("standard.human_only must be a TOML table")
+    for key in ("aggregate_metrics", "aggregate_stats", "group_by"):
+        value = human_only_cfg[key]
+        if not isinstance(value, list) or any(not isinstance(item, str) or not item.strip() for item in value):
+            raise ValueError(f"standard.human_only.{key} must be a non-empty string list")
+
+    plots_cfg = standard_cfg["plots"]
+    if not isinstance(plots_cfg, dict):
+        raise ValueError("standard.plots must be a TOML table")
+    if not isinstance(plots_cfg["enabled"], bool):
+        raise ValueError("standard.plots.enabled must be a boolean")
+    if not isinstance(plots_cfg["density_threshold"], int) or plots_cfg["density_threshold"] <= 0:
+        raise ValueError("standard.plots.density_threshold must be a positive integer")

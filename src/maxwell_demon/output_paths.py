@@ -16,12 +16,12 @@ def _sanitize_dataset_name(value: str) -> str:
 
 def _candidate_from_path(path: Path) -> str | None:
     parts = path.parts
-    if "data" in parts:
-        idx = parts.index("data")
-        if idx + 1 < len(parts):
-            return parts[idx + 1]
     if "results" in parts:
         idx = parts.index("results")
+        if idx + 1 < len(parts):
+            return parts[idx + 1]
+    if "data" in parts:
+        idx = parts.index("data")
         if idx + 1 < len(parts):
             return parts[idx + 1]
 

@@ -25,8 +25,10 @@ pip install -e '.[dev]'
 | Command | Role in the protocol |
 |---|---|
 | `python scripts/prepare_resources.py` | Reference calibration (human + synthetic dictionaries) |
+| `maxwell-demon-standard` | One-shot standard workflows (`human-only`, `tournament`) |
 | `maxwell-demon-tournament` | Dual-reference scoring and delta extraction |
 | `maxwell-demon-report` | Standalone Markdown report generation from a tournament CSV |
+| `maxwell-demon-aggregate` | Window-level to document-level CSV aggregation |
 | `maxwell-demon-phase` | Phase-space rendering (`delta_h`, `burstiness_paisa`) |
 
 ## Quickstart (Operational)
@@ -84,6 +86,49 @@ Default output:
 
 - `results/<dataset>/plot/phase_delta_h_vs_burstiness_paisa.html`
 
+## Standard One-Shot Workflows
+
+Use `maxwell-demon-standard` when you want the default protocol with config-driven parameters and
+workflow-scoped outputs under `results/<dataset>/<workflow>/...`.
+
+### Human-only (PAISA reference)
+
+```bash
+maxwell-demon-standard \
+  --workflow human-only \
+  --human-input data/<dataset>/human \
+  --ai-input data/<dataset>/ai \
+  --config config.example.toml
+```
+
+Outputs:
+
+- `results/<dataset>/human-only/data/labeled_<compression>.csv`
+- `results/<dataset>/human-only/data/doc_level_<compression>.csv`
+- `results/<dataset>/human-only/data/separation_<compression>.csv`
+- `results/<dataset>/human-only/plot/box_mean_entropy_by_label_<compression>.png`
+- `results/<dataset>/human-only/plot/box_compression_ratio_by_label_<compression>.png`
+- `results/<dataset>/human-only/plot/phase_density_mean_entropy_vs_compression_ratio_by_label_<compression>.html`
+
+### Tournament (two references)
+
+```bash
+maxwell-demon-standard \
+  --workflow tournament \
+  --human-input data/<dataset>/human \
+  --ai-input data/<dataset>/ai \
+  --config config.example.toml
+```
+
+Outputs:
+
+- `results/<dataset>/tournament/data/delta_<compression>.csv`
+- `results/<dataset>/tournament/data/delta_<compression>.md`
+- `results/<dataset>/tournament/data/separation_<compression>.csv`
+- `results/<dataset>/tournament/plot/phase_delta_h_vs_burstiness_paisa_<compression>.html`
+- `results/<dataset>/tournament/plot/box_delta_h_by_label_<compression>.png`
+- `results/<dataset>/<workflow>/run_manifest.json` (execution metadata)
+
 ## Output Interpretation
 
 Core columns in tournament CSV:
@@ -108,6 +153,33 @@ Do not interpret single windows in isolation; inspect distributions per file and
 - Domain and genre shift can change token distributions and degrade discrimination quality.
 - OOV/rare-token behavior depends on smoothing and tokenization settings.
 - Keep tokenization and smoothing identical between reference building and runtime analysis.
+
+## Document-Level Aggregation
+
+For evaluation and thresholding, aggregate sliding-window rows to one row per document:
+
+```bash
+maxwell-demon-aggregate \
+  --input results/<dataset>/data/single_human_only_paisa_labeled.csv \
+  --output results/<dataset>/data/single_human_only_paisa_doc_level.csv
+```
+
+Default behavior:
+
+- groups by available columns among `filename,label,mode,reference`;
+- computes `n_windows` plus per-metric statistics (`mean`, `median`, `std`, `min`, `max`, `p10`, `p25`, `p75`, `p90`);
+- writes columns as `<metric>__<stat>`.
+
+Example with explicit tuning:
+
+```bash
+maxwell-demon-aggregate \
+  --input results/<dataset>/data \
+  --output results/<dataset>/data/doc_level.csv \
+  --group-by filename,label \
+  --metrics mean_entropy,compression_ratio \
+  --stats mean,median,p90
+```
 
 ## Minimal Reproducible Run
 
@@ -208,6 +280,8 @@ Output paths are dataset-aware through templating:
 - `maxwell-demon-plot`: static PNG trajectory plot
 - `maxwell-demon-plot-html`: interactive HTML trajectory plot
 - `maxwell-demon-report`: standalone Markdown report tool (`--input`, `--output`)
+- `maxwell-demon-aggregate`: standalone doc-level aggregation tool (`--input`, `--output`)
+- `maxwell-demon-standard`: standard one-shot workflow runner
 - `scripts/run_analysis.py`: wrapper for single/tournament execution modes
 
 ## Verification

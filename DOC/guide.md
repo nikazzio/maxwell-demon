@@ -156,6 +156,63 @@ maxwell-demon \
 
 This does not produce `delta_h` (which requires both references), but it provides surprisal-based diagnostics against the human attractor.
 
+## 5.3 Document-Level Aggregation (recommended for evaluation)
+
+Window-level rows are useful for local diagnostics but are not independent samples.  
+For classification-oriented evaluation, aggregate to one row per document:
+
+```bash
+maxwell-demon-aggregate \
+  --input results/dataset_it_01/data/single_human_only_paisa_labeled.csv \
+  --output results/dataset_it_01/data/single_human_only_paisa_doc_level.csv
+```
+
+Default aggregation:
+
+- group keys: available columns among `filename,label,mode,reference`;
+- `n_windows` per document;
+- stats per metric: `mean`, `median`, `std`, `min`, `max`, `p10`, `p25`, `p75`, `p90`.
+
+Optional focused aggregation:
+
+```bash
+maxwell-demon-aggregate \
+  --input results/dataset_it_01/data \
+  --output results/dataset_it_01/data/doc_level.csv \
+  --group-by filename,label \
+  --metrics mean_entropy,compression_ratio \
+  --stats mean,median,p90
+```
+
+## 5.4 Standard One-Shot Workflows
+
+For repeatable operational runs, prefer the orchestrator CLI:
+
+Human-only (single reference, labeled + doc-level + readable plots):
+
+```bash
+maxwell-demon-standard \
+  --workflow human-only \
+  --human-input data/dataset_it_01/human \
+  --ai-input data/dataset_it_01/ai \
+  --config config.example.toml
+```
+
+Tournament (two references, delta workflow complete):
+
+```bash
+maxwell-demon-standard \
+  --workflow tournament \
+  --human-input data/dataset_it_01/human \
+  --ai-input data/dataset_it_01/ai \
+  --config config.example.toml
+```
+
+Outputs are isolated by workflow:
+
+- `results/dataset_it_01/human-only/...`
+- `results/dataset_it_01/tournament/...`
+
 ## 6. Interpretation Heuristics
 
 - lower `delta_h`: lower surprisal under the human reference relative to the synthetic reference.

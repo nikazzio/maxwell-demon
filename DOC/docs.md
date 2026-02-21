@@ -201,13 +201,107 @@ Tokenization policy:
 
 - Single analysis uses `[tokenization]` from the loaded config.
 
-## 7. Compression Policy
+## 7. `maxwell-demon-aggregate` (document-level post-processing)
+
+Reference command:
+
+```bash
+maxwell-demon-aggregate \
+  --input results/<dataset>/data/single_human_only_paisa_labeled.csv \
+  --output results/<dataset>/data/single_human_only_paisa_doc_level.csv
+```
+
+### 7.1 Arguments
+
+| Argument | Requirement | Semantics |
+|---|---|---|
+| `--input` | required | Input CSV file or directory of CSV files. |
+| `--output` | required | Output CSV path for document-level rows. |
+| `--metrics` | optional | Comma-separated metric columns to aggregate. Default: known numeric metrics present in input (`mean_entropy`, `entropy_variance`, `compression_ratio`, `unique_ratio`, `delta_h`, `burstiness_paisa`). |
+| `--stats` | optional | Comma-separated stats (`mean,median,std,min,max,p10,p25,p75,p90`). |
+| `--group-by` | optional | Comma-separated grouping columns. Default: `filename,label,mode,reference` (missing columns are ignored). |
+| `--sort-by` | optional | Comma-separated output sort columns. Default: `filename` when present. |
+
+### 7.2 Output schema
+
+The aggregator emits one row per document group with:
+
+- grouping columns (`group-by` effective set);
+- `n_windows`: number of original window-level rows merged in the group;
+- flattened aggregate columns named as `<metric>__<stat>`.
+
+Example columns:
+
+- `mean_entropy__mean`
+- `mean_entropy__median`
+- `compression_ratio__p90`
+
+## 8. `maxwell-demon-standard` (one-shot orchestrator)
+
+`maxwell-demon-standard` runs production-ready default workflows using values from config and writes
+workflow-scoped artifacts under `results/<dataset>/<workflow>/...`.
+
+### 8.1 Arguments
+
+| Argument | Requirement | Semantics |
+|---|---|---|
+| `--workflow` | required | `human-only` or `tournament`. |
+| `--human-input` | required | Human input file/folder. |
+| `--ai-input` | required | AI input file/folder. |
+| `--config` | optional | Path to TOML config. |
+| `--dataset` | optional | Override dataset name inference. |
+| `--compressions` | optional | Comma-separated list of compressions; default from `[standard].compressions`. |
+| `--output-root` | optional | Base output root (default: `results`). |
+| `--skip-plots` | optional | Skip plot generation. |
+| `--skip-aggregate` | optional | Skip doc-level aggregation (human-only only). |
+| `--dry-run` | optional | Print planned artifacts without writing files. |
+
+### 8.2 Workflow outputs
+
+Human-only workflow:
+
+- `results/<dataset>/human-only/data/labeled_<compression>.csv`
+- `results/<dataset>/human-only/data/doc_level_<compression>.csv`
+- `results/<dataset>/human-only/data/separation_<compression>.csv`
+- `results/<dataset>/human-only/plot/box_mean_entropy_by_label_<compression>.png`
+- `results/<dataset>/human-only/plot/box_compression_ratio_by_label_<compression>.png`
+- `results/<dataset>/human-only/plot/phase_density_mean_entropy_vs_compression_ratio_by_label_<compression>.html`
+
+Tournament workflow:
+
+- `results/<dataset>/tournament/data/delta_<compression>.csv`
+- `results/<dataset>/tournament/data/delta_<compression>.md`
+- `results/<dataset>/tournament/data/separation_<compression>.csv`
+- `results/<dataset>/tournament/plot/phase_delta_h_vs_burstiness_paisa_<compression>.html`
+- `results/<dataset>/tournament/plot/box_delta_h_by_label_<compression>.png`
+
+Both workflows emit:
+
+- `results/<dataset>/<workflow>/run_manifest.json`
+
+### 8.3 Standard config block
+
+```toml
+[standard]
+compressions = ["lzma", "gzip"]
+
+[standard.human_only]
+aggregate_metrics = ["mean_entropy", "entropy_variance", "compression_ratio", "unique_ratio"]
+aggregate_stats = ["mean", "median", "std", "min", "max", "p10", "p25", "p75", "p90"]
+group_by = ["filename", "label", "mode", "reference", "compression"]
+
+[standard.plots]
+enabled = true
+density_threshold = 2000
+```
+
+## 9. Compression Policy
 
 Protocol default: **LZMA**.
 
 `gzip`, `bz2`, and `zlib` are maintained for controlled comparative analyses and reproducibility studies.
 
-## 8. Automatic and Standalone Reporting
+## 10. Automatic and Standalone Reporting
 
 `maxwell-demon-tournament` generates a Markdown report immediately after CSV export.
 The report path is derived from the CSV output path by replacing the extension with `.md`.
@@ -217,7 +311,7 @@ Example:
 - CSV: `results/dataset_it_01/data/final_delta.csv`
 - report: `results/dataset_it_01/data/final_delta.md`
 
-### 8.1 Report content
+### 10.1 Report content
 
 The report includes:
 
@@ -225,7 +319,7 @@ The report includes:
 - rule-based classification metrics (current implementation in `maxwell-demon-report`: `delta_h < 0 => human`);
 - confusion matrix (`TP`, `TN`, `FP`, `FN`) when valid labels are present.
 
-### 8.2 Standalone CLI
+### 10.2 Standalone CLI
 
 The same report can be generated manually from any existing CSV:
 

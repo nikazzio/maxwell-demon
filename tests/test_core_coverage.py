@@ -63,6 +63,9 @@ paisa_path = "paisa.json"
     assert loaded["tokenization"]["fallback_to_legacy_if_tiktoken_missing"] is True
     assert loaded["output"]["data_dir"] == "results/{dataset}/data"
     assert loaded["output"]["plot_dir"] == "results/{dataset}/plot"
+    assert loaded["standard"]["compressions"] == ["lzma", "gzip"]
+    assert loaded["standard"]["human_only"]["aggregate_metrics"]
+    assert loaded["standard"]["plots"]["enabled"] is True
 
 
 def test_load_config_accepts_supported_compression_algorithms(tmp_path: Path) -> None:
@@ -298,6 +301,13 @@ def test_single_output_filename_human_only() -> None:
     assert output_paths.single_output_filename("diff", "paisa", human_only=True) == (
         "single_human_only_paisa.csv"
     )
+
+
+def test_infer_dataset_name_prefers_results_dataset_for_result_csv() -> None:
+    inferred = output_paths.infer_dataset_name(
+        ["results/test_articoli/data/single_human_only_paisa.csv"]
+    )
+    assert inferred == "test_articoli"
 
 
 def test_run_tournament_generates_expected_columns(tmp_path: Path) -> None:

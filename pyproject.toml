@@ -40,6 +40,8 @@ maxwell-demon-plot = "maxwell_demon.tools.plot_results:main"
 maxwell-demon-plot-html = "maxwell_demon.tools.plot_results_html:main"
 maxwell-demon-phase = "maxwell_demon.tools.plot_phase:main"
 maxwell-demon-report = "maxwell_demon.tools.report_stats:main"
+maxwell-demon-aggregate = "maxwell_demon.tools.aggregate_docs:main"
+maxwell-demon-standard = "maxwell_demon.standard_cli:main"
 
 [tool.ruff]
 line-length = 100
